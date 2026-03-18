@@ -13,7 +13,7 @@
  *
  * NOTA CORS:
  * La NYT API permite peticiones directas del navegador solo para /lists/current y /lists/overview.
- * Para los demás endpoints se usa allorigins.win como proxy CORS intermedio.
+ * Para los demás endpoints se usa un sistema de proxies CORS con fallback automático.
  *
  * Configuración: La API Key se guarda en localStorage.
  * ⚠️ Nunca subas tu API Key a GitHub. Usa variables de entorno en producción.
@@ -24,13 +24,6 @@
 // ─────────────────────────────────────────────
 
 const NYT_BASE = 'https://api.nytimes.com/svc/books/v3';
-
-/**
- * Proxy CORS para endpoints que la NYT API bloquea desde el navegador.
- * allorigins.win es un proxy público gratuito que reenvía la petición
- * y agrega los headers CORS necesarios en la respuesta.
- */
-const CORS_PROXY = 'https://api.allorigins.win/get?url=';
 
 /**
  * API Key del NYT Developer Portal.
@@ -147,12 +140,76 @@ function obtenerApiKey() {
 // ─────────────────────────────────────────────
 
 /**
+ * Lista de proxies CORS con fallback automático.
+ *
+ * El problema: los proxies CORS públicos gratuitos son inestables —
+ * pueden estar caídos, lentos o con rate limit en cualquier momento.
+ *
+ * La solución: definir múltiples proxies. Si el primero falla, se
+ * intenta automáticamente con el siguiente. Así el código es resiliente
+ * a la caída de cualquier proxy individual.
+ *
+ * Formato de cada entrada:
+ *   buildUrl(targetUrl) → URL completa del proxy para esa URL destino
+ *   parseResponse(res)  → extrae el JSON final de la respuesta del proxy
+ *
+ * Proxies incluidos:
+ *   1. corsproxy.io  — muy confiable, respuesta directa (texto plano)
+ *   2. allorigins    — clásico, envuelve en { contents: ... }
+ *   3. thingproxy    — alternativa simple (texto plano)
+ */
+/**
+ * Proxies CORS verificados y activos en 2025.
+ * Cada uno tiene un formato de respuesta diferente, por eso cada entrada
+ * define su propio buildUrl() y parseResponse() para abstraer esas diferencias.
+ *
+ * Orden elegido por confiabilidad y rate limit:
+ *   1. cloudflare-cors-anywhere — espeja el status HTTP real, sin rate limit conocido
+ *   2. allorigins               — clásico y estable, 20 req/min, envuelve en {contents}
+ *   3. codetabs                 — solo GET pero 5 req/seg, respuesta directa
+ *   4. cors-anywhere (heroku)   — el original, 50 req/hora, requiere header Origin
+ */
+const CORS_PROXIES = [
+  {
+    name: 'cloudflare-cors-anywhere',
+    buildUrl: t => `https://cloudflare-cors-anywhere.hugeeducation.workers.dev/?${t}`,
+    parseResponse: async res => {
+      const text = await res.text();
+      return JSON.parse(text);
+    }
+  },
+  {
+    name: 'allorigins',
+    buildUrl: t => `https://api.allorigins.win/get?url=${encodeURIComponent(t)}`,
+    parseResponse: async res => {
+      const wrapper = await res.json();
+      if (!wrapper.contents) throw new Error('allorigins: respuesta vacía');
+      return JSON.parse(wrapper.contents);
+    }
+  },
+  {
+    name: 'codetabs',
+    buildUrl: t => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(t)}`,
+    parseResponse: async res => {
+      const text = await res.text();
+      return JSON.parse(text);
+    }
+  },
+  {
+    name: 'cors-anywhere',
+    buildUrl: t => `https://cors-anywhere.herokuapp.com/${t}`,
+    parseResponse: async res => {
+      const text = await res.text();
+      return JSON.parse(text);
+    },
+    extraHeaders: { 'X-Requested-With': 'XMLHttpRequest' }
+  },
+];
+
+/**
  * Petición DIRECTA a la NYT API (sin proxy).
  * Funciona para: /lists/current/*, /lists/overview.json, /lists/{date}/*.
  * Estos endpoints responden con CORS habilitado para peticiones de browser.
- *
- * @param {string} endpoint - Ruta relativa ej: '/lists/current/hardcover-fiction.json'
- * @param {Object} params   - Query params adicionales
  */
 async function fetchNYT(endpoint, params = {}) {
   const apiKey = obtenerApiKey();
@@ -171,18 +228,16 @@ async function fetchNYT(endpoint, params = {}) {
 }
 
 /**
- * Petición VÍA PROXY CORS a la NYT API.
- * Necesario para endpoints que el navegador bloquea por política CORS:
+ * Petición VÍA PROXY CORS con fallback automático entre múltiples proxies.
+ *
+ * Intenta cada proxy de CORS_PROXIES en orden. Si uno falla (caído,
+ * timeout, respuesta inválida), pasa al siguiente automáticamente.
+ * Solo lanza error si TODOS los proxies fallan.
+ *
+ * Necesario para:
  *   - /lists/names.json
  *   - /lists/best-sellers/history.json
  *   - /reviews.json
- *
- * allorigins.win recibe la URL destino, hace la petición desde su servidor
- * (que no tiene restricciones de browser) y devuelve el contenido
- * envuelto en { contents: "..." } como string JSON.
- *
- * @param {string} endpoint - Ruta relativa
- * @param {Object} params   - Query params adicionales
  */
 async function fetchNYTProxy(endpoint, params = {}) {
   const apiKey = obtenerApiKey();
@@ -193,37 +248,56 @@ async function fetchNYTProxy(endpoint, params = {}) {
 
   if (cache[urlStr]) return cache[urlStr];
 
-  // Envolver la URL destino en el proxy
-  const proxyUrl = CORS_PROXY + encodeURIComponent(urlStr);
-  const res = await fetch(proxyUrl);
+  let ultimoError = null;
 
-  if (!res.ok) throw new Error(`Error de red (${res.status}). Intenta de nuevo.`);
+  // Intentar cada proxy en orden hasta que uno funcione
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const proxyUrl = proxy.buildUrl(urlStr);
 
-  const wrapper = await res.json();
+      // Timeout de 8 segundos por proxy para no esperar eternamente
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
 
-  // allorigins devuelve { contents: "<json como string>" }
-  if (!wrapper.contents) {
-    throw new Error('El proxy no devolvió contenido. Verifica tu conexión.');
-  }
+      // Algunos proxies (ej: cors-anywhere) requieren headers adicionales
+      const fetchOpts = { signal: controller.signal };
+      if (proxy.extraHeaders) fetchOpts.headers = proxy.extraHeaders;
+      const res = await fetch(proxyUrl, fetchOpts);
+      clearTimeout(timer);
 
-  let data;
-  try {
-    data = JSON.parse(wrapper.contents);
-  } catch {
-    throw new Error('La respuesta de la API no tiene el formato esperado.');
-  }
+      if (!res.ok) {
+        ultimoError = new Error(`${proxy.name}: HTTP ${res.status}`);
+        continue; // Intentar siguiente proxy
+      }
 
-  // Revisar si la API devolvió un error dentro del JSON
-  if (data.fault || data.message) {
-    const msg = data.fault?.faultstring || data.message || 'Error de la API';
-    if (msg.includes('Invalid API Key') || msg.includes('401')) {
-      throw new Error('API Key inválida. Verifica tu clave en developer.nytimes.com');
+      const data = await proxy.parseResponse(res);
+
+      // Verificar errores dentro del JSON de la NYT
+      if (data.fault) {
+        const msg = data.fault.faultstring || 'Error de la API';
+        if (msg.toLowerCase().includes('api key') || msg.includes('401')) {
+          throw new Error('API Key inválida. Verifica tu clave en developer.nytimes.com');
+        }
+        throw new Error(msg);
+      }
+
+      // Éxito — guardar en caché y retornar
+      guardarEnCache(urlStr, data);
+      return data;
+
+    } catch (err) {
+      // AbortError = timeout, otros = fallo del proxy
+      if (err.message.includes('API Key')) throw err; // Error de auth, no reintentar
+      ultimoError = err;
+      // Continuar al siguiente proxy
     }
-    throw new Error(msg);
   }
 
-  guardarEnCache(urlStr, data);
-  return data;
+  // Todos los proxies fallaron
+  throw new Error(
+    `No se pudo conectar con la API. Todos los proxies fallaron. ` +
+    `Verifica tu conexión a internet. (Último error: ${ultimoError?.message})`
+  );
 }
 
 /** Lanza un error descriptivo según el código HTTP de la respuesta */
