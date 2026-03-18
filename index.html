@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Explorador de Libros NYT</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <h1>NYT Books Explorer</h1>
+    </header>
+
+    <nav class="menu">
+        <select id="categoriaSelect" onchange="cambiarCategoria()">
+            <option value="combined-print-and-e-book-fiction">Combined Print & E-book Fiction</option>
+            <option value="hardcover-fiction">Hardcover Fiction</option>
+            <option value="hardcover-nonfiction">Hardcover Nonfiction</option>
+            <option value="young-adult-hardcover">Young Adult Hardcover</option>
+            <option value="business-books">Business Books</option>
+        </select>
+        <button onclick="librosCategoria()">Top Combined Fiction</button>
+        <button onclick="overview()">Resumen general</button>
+    </nav>
+
+    <section class="search">
+        <div class="search-box">
+            <input id="fechaInput" type="date">
+            <button onclick="librosPorFecha()">Buscar por fecha</button>
+        </div>
+
+        <div class="search-box">
+            <input id="buscarLibroInput" placeholder="Buscar libro">
+            <button onclick="buscarLibro()">Buscar</button>
+        </div>
+
+        <input id="buscarAutorInput" placeholder="Buscar autor">
+        <button onclick="buscarAutor()">Buscar</button>
+    </section>
+
+    <div id="mensaje"></div>
+    <section id="resultado" class="grid"></section>
+    <script src="app.js"></script>
+</body>
+</html>

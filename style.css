@@ -1,0 +1,106 @@
+body{
+font-family: Arial, sans-serif;
+margin:0;
+background:#f5f5f5;
+}
+
+header{
+text-align:center;
+padding:20px;
+background:white;
+border-bottom:1px solid #ddd;
+}
+
+.menu{
+display:flex;
+justify-content:center;
+gap:10px;
+padding:15px;
+background:white;
+border-bottom:1px solid #ddd;
+}
+
+button{
+padding:8px 14px;
+border:none;
+background:black;
+color:white;
+cursor:pointer;
+border-radius:4px;
+}
+
+button:hover{
+background:#333;
+}
+
+.search{
+display:flex;
+justify-content:center;
+gap:20px;
+padding:20px;
+flex-wrap:wrap;
+}
+
+.search-box{
+display:flex;
+gap:8px;
+}
+
+input{
+padding:8px;
+border:1px solid #ccc;
+border-radius:4px;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+gap:20px;
+padding:30px;
+}
+
+.card{
+background:white;
+border-radius:8px;
+padding:15px;
+box-shadow:0 2px 6px rgba(0,0,0,0.1);
+display:flex;
+flex-direction:column;
+}
+
+.card img{
+width:100%;
+border-radius:6px;
+margin-bottom:10px;
+}
+
+.card h3{
+margin:5px 0;
+font-size:18px;
+}
+
+.meta{
+font-size:13px;
+color:#666;
+margin-bottom:8px;
+}
+
+.descripcion{
+font-size:14px;
+margin-top:8px;
+}
+
+.error{
+text-align:center;
+padding:15px;
+background:#ffe5e5;
+color:#b00020;
+margin:20px;
+border-radius:6px;
+}
+
+.success{
+text-align:center;
+padding:10px;
+color:#555;
+}
