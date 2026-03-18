@@ -1,45 +1,239 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Explorador de Libros NYT</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NYT Books Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-    <header>
-        <h1>NYT Books Explorer</h1>
-    </header>
 
-    <nav class="menu">
-        <select id="categoriaSelect" onchange="cambiarCategoria()">
-            <option value="combined-print-and-e-book-fiction">Combined Print & E-book Fiction</option>
-            <option value="hardcover-fiction">Hardcover Fiction</option>
-            <option value="hardcover-nonfiction">Hardcover Nonfiction</option>
-            <option value="young-adult-hardcover">Young Adult Hardcover</option>
-            <option value="business-books">Business Books</option>
-        </select>
-        <button onclick="librosCategoria()">Top Combined Fiction</button>
-        <button onclick="overview()">Resumen general</button>
+  <!-- API KEY MODAL -->
+  <div id="apiModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-logo">📚</div>
+      <h2>NYT Books Explorer</h2>
+      <p>Ingresa tu API Key del New York Times para comenzar a explorar.</p>
+      <p class="modal-hint">Obtén tu clave en <a href="https://developer.nytimes.com" target="_blank">developer.nytimes.com</a></p>
+      <input type="text" id="apiKeyInput" placeholder="Pega tu API Key aquí..." autocomplete="off">
+      <button onclick="guardarApiKey()" class="btn-primary">Comenzar exploración</button>
+      <p class="modal-note">Tu clave se guarda solo en tu navegador (localStorage). Nunca se envía a nuestros servidores.</p>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="toast"></div>
+
+  <!-- SIDEBAR NAV -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-icon">📚</span>
+      <span class="brand-text">NYT Books</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <p class="nav-label">Explorar</p>
+      <button class="nav-item active" data-section="bestsellers" onclick="mostrarSeccion('bestsellers', this)">
+        <span class="nav-icon">🏆</span> Best Sellers
+      </button>
+      <button class="nav-item" data-section="overview" onclick="mostrarSeccion('overview', this)">
+        <span class="nav-icon">📊</span> Resumen General
+      </button>
+      <button class="nav-item" data-section="buscar" onclick="mostrarSeccion('buscar', this)">
+        <span class="nav-icon">🔍</span> Buscar Libros
+      </button>
+      <button class="nav-item" data-section="resenas" onclick="mostrarSeccion('resenas', this)">
+        <span class="nav-icon">✍️</span> Reseñas
+      </button>
+      <button class="nav-item" data-section="historial" onclick="mostrarSeccion('historial', this)">
+        <span class="nav-icon">📅</span> Por Fecha
+      </button>
+      <button class="nav-item" data-section="listas" onclick="mostrarSeccion('listas', this)">
+        <span class="nav-icon">📋</span> Todas las Listas
+      </button>
+      <button class="nav-item" data-section="comparar" onclick="mostrarSeccion('comparar', this)">
+        <span class="nav-icon">⚖️</span> Comparar Libros
+      </button>
     </nav>
 
-    <section class="search">
-        <div class="search-box">
-            <input id="fechaInput" type="date">
-            <button onclick="librosPorFecha()">Buscar por fecha</button>
+    <div class="sidebar-footer">
+      <button class="btn-apikey" onclick="cambiarApiKey()">🔑 Cambiar API Key</button>
+      <button class="btn-theme" onclick="toggleTheme()" id="themeBtn">🌙 Modo Oscuro</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-wrapper">
+    <header class="topbar">
+      <button class="hamburger" onclick="toggleSidebar()" id="hamburger">☰</button>
+      <div class="topbar-title" id="topbarTitle">Best Sellers</div>
+      <div class="topbar-right">
+        <span class="api-status" id="apiStatus">● Conectado</span>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <!-- SECCIÓN: BEST SELLERS -->
+      <section id="sec-bestsellers" class="section active">
+        <div class="section-header">
+          <h1>Best Sellers <span class="badge">NYT</span></h1>
+          <p>Los libros más vendidos según las listas del New York Times</p>
         </div>
-
-        <div class="search-box">
-            <input id="buscarLibroInput" placeholder="Buscar libro">
-            <button onclick="buscarLibro()">Buscar</button>
+        <div class="controls-bar">
+          <select id="categoriaSelect" class="select-styled">
+            <option value="combined-print-and-e-book-fiction" selected>Combined Print & E-book Fiction</option>
+            <option value="hardcover-fiction">Hardcover Fiction</option>
+            <option value="hardcover-nonfiction">Hardcover Nonfiction</option>
+            <option value="paperback-nonfiction">Paperback Nonfiction</option>
+            <option value="young-adult-hardcover">Young Adult Hardcover</option>
+            <option value="business-books">Business Books</option>
+            <option value="science">Science</option>
+            <option value="travel">Travel</option>
+            <option value="graphic-books-and-manga">Graphic Books & Manga</option>
+            <option value="humor">Humor</option>
+          </select>
+          <button class="btn-primary" onclick="librosCategoria()">
+            <span>Ver lista</span>
+          </button>
         </div>
+        <div id="resultado-bestsellers" class="grid-results"></div>
+      </section>
 
-        <input id="buscarAutorInput" placeholder="Buscar autor">
-        <button onclick="buscarAutor()">Buscar</button>
-    </section>
+      <!-- SECCIÓN: OVERVIEW -->
+      <section id="sec-overview" class="section">
+        <div class="section-header">
+          <h1>Resumen General <span class="badge">Semana actual</span></h1>
+          <p>Vista panorámica de todas las listas de best sellers esta semana</p>
+        </div>
+        <button class="btn-primary" onclick="overview()">Cargar resumen semanal</button>
+        <div id="resultado-overview" class="overview-container"></div>
+      </section>
 
-    <div id="mensaje"></div>
-    <section id="resultado" class="grid"></section>
-    <script src="app.js"></script>
+      <!-- SECCIÓN: BUSCAR -->
+      <section id="sec-buscar" class="section">
+        <div class="section-header">
+          <h1>Buscar Libros</h1>
+          <p>Busca cualquier libro por título o por autor en el catálogo NYT</p>
+        </div>
+        <div class="search-tabs">
+          <button class="tab active" onclick="activarTab('titulo', this)">Por Título</button>
+          <button class="tab" onclick="activarTab('autor', this)">Por Autor</button>
+        </div>
+        <div id="tab-titulo" class="tab-content active">
+          <div class="search-input-group">
+            <input id="buscarLibroInput" type="text" placeholder="Ej: Harry Potter, Dune, El Principito..." 
+                   onkeydown="if(event.key==='Enter') buscarLibro()">
+            <button class="btn-primary" onclick="buscarLibro()">Buscar</button>
+          </div>
+        </div>
+        <div id="tab-autor" class="tab-content">
+          <div class="search-input-group">
+            <input id="buscarAutorInput" type="text" placeholder="Ej: Gabriel García Márquez, Stephen King..."
+                   onkeydown="if(event.key==='Enter') buscarAutor()">
+            <button class="btn-primary" onclick="buscarAutor()">Buscar</button>
+          </div>
+        </div>
+        <div id="resultado-buscar" class="grid-results"></div>
+      </section>
+
+      <!-- SECCIÓN: RESEÑAS -->
+      <section id="sec-resenas" class="section">
+        <div class="section-header">
+          <h1>Reseñas Literarias</h1>
+          <p>Busca reseñas del NYT por título de libro o por autor</p>
+        </div>
+        <div class="search-tabs">
+          <button class="tab active" onclick="activarTabResena('rtitulo', this)">Por Título</button>
+          <button class="tab" onclick="activarTabResena('rautor', this)">Por Autor</button>
+          <button class="tab" onclick="activarTabResena('risbn', this)">Por ISBN</button>
+        </div>
+        <div id="tab-rtitulo" class="tab-content active">
+          <div class="search-input-group">
+            <input id="resenaTituloInput" type="text" placeholder="Título del libro..."
+                   onkeydown="if(event.key==='Enter') buscarResena('titulo')">
+            <button class="btn-primary" onclick="buscarResena('titulo')">Buscar reseña</button>
+          </div>
+        </div>
+        <div id="tab-rautor" class="tab-content">
+          <div class="search-input-group">
+            <input id="resenaAutorInput" type="text" placeholder="Nombre del autor..."
+                   onkeydown="if(event.key==='Enter') buscarResena('autor')">
+            <button class="btn-primary" onclick="buscarResena('autor')">Buscar reseña</button>
+          </div>
+        </div>
+        <div id="tab-risbn" class="tab-content">
+          <div class="search-input-group">
+            <input id="resenaIsbnInput" type="text" placeholder="ISBN del libro (sin guiones)..."
+                   onkeydown="if(event.key==='Enter') buscarResena('isbn')">
+            <button class="btn-primary" onclick="buscarResena('isbn')">Buscar reseña</button>
+          </div>
+        </div>
+        <div id="resultado-resenas" class="resenas-container"></div>
+      </section>
+
+      <!-- SECCIÓN: HISTORIAL POR FECHA -->
+      <section id="sec-historial" class="section">
+        <div class="section-header">
+          <h1>Best Sellers por Fecha</h1>
+          <p>Consulta qué libros lideraban las listas en una fecha específica</p>
+        </div>
+        <div class="controls-bar">
+          <select id="categoriaFechaSelect" class="select-styled">
+            <option value="combined-print-and-e-book-fiction" selected>Combined Print & E-book Fiction</option>
+            <option value="hardcover-fiction">Hardcover Fiction</option>
+            <option value="hardcover-nonfiction">Hardcover Nonfiction</option>
+            <option value="paperback-nonfiction">Paperback Nonfiction</option>
+            <option value="young-adult-hardcover">Young Adult Hardcover</option>
+            <option value="business-books">Business Books</option>
+          </select>
+          <input id="fechaInput" type="date" class="input-date" max="2025-12-31" min="2011-02-13">
+          <button class="btn-primary" onclick="librosPorFecha()">Consultar</button>
+        </div>
+        <div id="resultado-historial" class="grid-results"></div>
+      </section>
+
+      <!-- SECCIÓN: TODAS LAS LISTAS -->
+      <section id="sec-listas" class="section">
+        <div class="section-header">
+          <h1>Todas las Listas</h1>
+          <p>Explora todas las categorías disponibles en el NYT Books API</p>
+        </div>
+        <button class="btn-primary" onclick="cargarListas()">Ver todas las listas</button>
+        <div id="resultado-listas" class="listas-container"></div>
+      </section>
+
+      <!-- SECCIÓN: COMPARAR -->
+      <section id="sec-comparar" class="section">
+        <div class="section-header">
+          <h1>Comparar Libros ⚖️</h1>
+          <p>Compara dos libros lado a lado buscándolos por título</p>
+        </div>
+        <div class="comparar-inputs">
+          <div class="comparar-col">
+            <label>Libro A</label>
+            <input id="compararLibroA" type="text" placeholder="Ej: Dune"
+                   onkeydown="if(event.key==='Enter') compararLibros()">
+          </div>
+          <div class="comparar-vs">VS</div>
+          <div class="comparar-col">
+            <label>Libro B</label>
+            <input id="compararLibroB" type="text" placeholder="Ej: Foundation"
+                   onkeydown="if(event.key==='Enter') compararLibros()">
+          </div>
+        </div>
+        <div class="comparar-btn-wrap">
+          <button class="btn-primary btn-large" onclick="compararLibros()">Comparar</button>
+        </div>
+        <div id="resultado-comparar" class="comparar-result"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
