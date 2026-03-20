@@ -1,47 +1,53 @@
-/**
- * NYT Books Explorer — app.js
- * ============================
- * Aplicación completa que consume la NYT Books API.
- *
- * ENDPOINTS UTILIZADOS:
- * 1. /lists/current/{list}.json          → Best Sellers por categoría (directo, tiene CORS)
- * 2. /lists/overview.json                → Resumen general semanal (directo)
- * 3. /lists/names.json                   → Todas las listas disponibles (vía proxy CORS)
- * 4. /lists/{date}/{list}.json           → Best Sellers por fecha (directo)
- * 5. /lists/best-sellers/history.json    → Búsqueda por título/autor (vía proxy CORS)
- * 6. /reviews.json                       → Reseñas por título/autor/ISBN (vía proxy CORS)
- *
- * NOTA CORS:
- * La NYT API permite peticiones directas del navegador solo para /lists/current y /lists/overview.
- * Para los demás endpoints se usa un sistema de proxies CORS con fallback automático.
- *
- * Configuración: La API Key se guarda en localStorage.
- * ⚠️ Nunca subas tu API Key a GitHub. Usa variables de entorno en producción.
- */
 
-// ─────────────────────────────────────────────
-// CONFIGURACIÓN
-// ─────────────────────────────────────────────
-
+// SECCIÓN 1 — CONSTANTES DE CONFIGURACIÓN
 const NYT_BASE = 'https://api.nytimes.com/svc/books/v3';
 
 /**
- * API Key del NYT Developer Portal.
- * ⚠️ En producción usar variable de entorno en un backend propio.
- * Revocar si se sube accidentalmente a un repo público.
+ * API Key del New York Times Developer Portal.
+ *
+ * ¿Cómo configurarla?
+ * ───────────────────
+ * 1. Crea un archivo llamado  config.js  en la raíz del proyecto
+ *    (al lado de este app.js) con el siguiente contenido:
+ *
+ *      const NYT_API_KEY = 'TU_API_KEY_AQUI';
+ *
+ * 2. Ese archivo está en .gitignore — nunca se subirá a GitHub.
+ *
+ * 3. Si no existe config.js, la app pedirá la clave por pantalla
+ *    y la guardará en localStorage del navegador.
+ *
+ *  NUNCA escribas tu API Key directamente en este archivo ni
+ *    en ningún archivo que se suba a un repositorio público.
+ *
+ * Más información: https://developer.nytimes.com/my-apps
  */
-const DEFAULT_API_KEY = 'QGUSy23kEHYAAuAzT44K2V1J7klf3XAmKnErAezz6JI44Foa';
+const DEFAULT_API_KEY = (typeof NYT_API_KEY !== 'undefined')
+  ? NYT_API_KEY          // Viene de config.js (variable de entorno local)
+  : null;                // Si no existe, la app pedirá la clave por pantalla
 
-/** Categoría asignada: Combined Print & E-Book Fiction */
+/**
+ * Categoría por defecto asignada para este ejercicio.
+ * Corresponde a la lista "Combined Print & E-Book Fiction" del NYT.
+ */
 const DEFAULT_CATEGORY = 'combined-print-and-e-book-fiction';
 
-/** Imagen de respaldo para portadas no disponibles */
+/**
+ * URL de imagen de respaldo para libros sin portada disponible.
+ * Se muestra automáticamente cuando la API no retorna una imagen
+ * o cuando la imagen no carga (manejado con onerror en el HTML).
+ */
 const IMG_FALLBACK = 'https://placehold.co/200x300/f0e8d0/5a4f3f?text=Sin+Portada&font=playfair-display';
 
 /**
- * Categorías activas y verificadas en la NYT Books API.
- * Se usan para poblar los <select> dinámicamente y evitar
- * mostrar listas que ya no existen o no tienen datos.
+ * Lista completa de categorías activas y verificadas en la NYT Books API (2025).
+ *
+ * Solo se incluyen categorías que actualmente retornan datos. Se usa para:
+ *   1. Poblar los elementos <select> del HTML dinámicamente.
+ *   2. Definir qué listas se consultan en la búsqueda por título/autor.
+ *
+ * Ventaja de manejarlas aquí en vez del HTML: si una categoría deja de
+ * funcionar, se elimina de un solo lugar sin tocar el HTML.
  */
 const CATEGORIAS_ACTIVAS = [
   { value: 'combined-print-and-e-book-fiction',    label: 'Combined Print & E-Book Fiction' },
@@ -65,32 +71,61 @@ const CATEGORIAS_ACTIVAS = [
   { value: 'e-book-nonfiction',                    label: 'E-Book Nonfiction' },
 ];
 
-/** Caché en memoria para evitar peticiones repetidas */
+/**
+ * Subconjunto de categorías que se consultan en paralelo al buscar
+ * por título o autor. Se eligieron las más amplias para maximizar
+ * la cobertura de resultados sin sobrepasar el límite de la API.
+ */
+const CATEGORIAS_BUSQUEDA = [
+  'combined-print-and-e-book-fiction',
+  'combined-print-and-e-book-nonfiction',
+  'hardcover-fiction',
+  'hardcover-nonfiction',
+  'trade-fiction-paperback',
+  'paperback-nonfiction',
+  'young-adult-hardcover',
+  'hardcover-business-books',
+  'hardcover-graphic-books',
+  'manga',
+];
+
+/**
+ * Objeto de caché en memoria (clave = URL completa, valor = datos JSON).
+ * Se limpia automáticamente entrada por entrada cada 5 minutos.
+ * Ver función guardarEnCache().
+ */
 const cache = {};
 
-// ─────────────────────────────────────────────
-// INICIALIZACIÓN
-// ─────────────────────────────────────────────
 
+// ============================================================
+// SECCIÓN 2 — INICIALIZACIÓN
+// ============================================================
+
+/**
+ * Punto de entrada de la aplicación.
+ * Se ejecuta cuando el DOM está completamente cargado.
+ * Configura la API Key, el tema visual, los selectores y la carga inicial.
+ */
 window.addEventListener('DOMContentLoaded', () => {
-  // Guardar API Key por defecto si no hay ninguna
+
+  // Si no hay API Key guardada, se usa la clave por defecto
   if (!localStorage.getItem('nyt_api_key')) {
     localStorage.setItem('nyt_api_key', DEFAULT_API_KEY);
   }
 
-  // Ocultar modal de API Key
+  // La app ya tiene clave configurada, ocultar el modal de ingreso
   document.getElementById('apiModal').classList.add('hidden');
 
-  // Poblar los selectores con las categorías verificadas
+  // Llenar los <select> de categorías con la lista verificada
   poblarSelectores();
 
-  // Aplicar tema guardado (oscuro/claro)
+  // Restaurar el tema (oscuro/claro) que el usuario eligió la última vez
   aplicarTemaGuardado();
 
-  // Carga inicial: Best Sellers de la categoría asignada
+  // Cargar la lista de Best Sellers de la categoría por defecto al abrir
   librosCategoria();
 
-  // Crear overlay del sidebar para móvil
+  // Crear el overlay semitransparente que cierra el sidebar en móvil
   const overlay = document.createElement('div');
   overlay.className = 'sidebar-overlay';
   overlay.id = 'sidebarOverlay';
@@ -99,12 +134,12 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * Rellena los elementos <select> de categoría con la lista verificada.
- * Así evitamos mostrar categorías inexistentes o discontinuadas.
+ * Llena los elementos <select> de categorías con las opciones de CATEGORIAS_ACTIVAS.
+ * Marca como seleccionada la categoría por defecto (DEFAULT_CATEGORY).
+ * Se aplica a todos los selectores que tienen ese rol en el HTML.
  */
 function poblarSelectores() {
-  const ids = ['categoriaSelect', 'categoriaFechaSelect'];
-  ids.forEach(id => {
+  ['categoriaSelect', 'categoriaFechaSelect'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.innerHTML = CATEGORIAS_ACTIVAS.map(cat =>
@@ -113,237 +148,254 @@ function poblarSelectores() {
   });
 }
 
-// ─────────────────────────────────────────────
-// GESTIÓN DE API KEY
-// ─────────────────────────────────────────────
 
+// ============================================================
+// SECCIÓN 3 — GESTIÓN DE API KEY
+// ============================================================
+
+/**
+ * Lee la API Key del campo del modal y la guarda en localStorage.
+ * Si el campo está vacío, muestra un mensaje de error y no continúa.
+ * Al guardar exitosamente, cierra el modal y recarga los Best Sellers.
+ */
 function guardarApiKey() {
   const key = document.getElementById('apiKeyInput').value.trim();
-  if (!key) { mostrarToast('Ingresa una API Key válida.', 'error'); return; }
+  if (!key) {
+    mostrarToast('Ingresa una API Key válida.', 'error');
+    return;
+  }
   localStorage.setItem('nyt_api_key', key);
   document.getElementById('apiModal').classList.add('hidden');
   mostrarToast('API Key guardada ✓', 'success');
   librosCategoria();
 }
 
+/**
+ * Abre el modal de API Key, pre-llenando el campo con la clave actual
+ * para que el usuario pueda editarla o reemplazarla fácilmente.
+ */
 function cambiarApiKey() {
   document.getElementById('apiModal').classList.remove('hidden');
   document.getElementById('apiKeyInput').value = localStorage.getItem('nyt_api_key') || '';
 }
 
+/**
+ * Retorna la API Key activa.
+ * Prioriza la clave guardada en localStorage; si no existe, usa DEFAULT_API_KEY.
+ *
+ * @returns {string} API Key a usar en las peticiones
+ */
 function obtenerApiKey() {
-  return localStorage.getItem('nyt_api_key') || DEFAULT_API_KEY;
+  // Prioridad: 1) localStorage (ingresada por el usuario)
+  //            2) config.js   (variable NYT_API_KEY del entorno local)
+  //            3) null        (se pedirá por pantalla)
+  return localStorage.getItem('nyt_api_key') || DEFAULT_API_KEY || null;
 }
 
-// ─────────────────────────────────────────────
-// CAPA DE RED — fetchNYT y fetchNYTProxy
-// ─────────────────────────────────────────────
+
+// ============================================================
+// SECCIÓN 4 — CAPA DE RED (fetchNYT)
+// ============================================================
 
 /**
- * Lista de proxies CORS con fallback automático.
+ * Función central de red. Realiza una petición HTTP GET a la NYT Books API.
  *
- * El problema: los proxies CORS públicos gratuitos son inestables —
- * pueden estar caídos, lentos o con rate limit en cualquier momento.
+ * Flujo:
+ *   1. Construye la URL completa con el endpoint y los parámetros recibidos.
+ *   2. Agrega la API Key como parámetro de query string (requerido por NYT).
+ *   3. Verifica el caché: si ya se consultó esta URL recientemente, retorna
+ *      el resultado guardado sin hacer una nueva petición de red.
+ *   4. Realiza el fetch() y maneja los errores HTTP más comunes.
+ *   5. Parsea la respuesta JSON y la guarda en caché antes de retornarla.
  *
- * La solución: definir múltiples proxies. Si el primero falla, se
- * intenta automáticamente con el siguiente. Así el código es resiliente
- * a la caída de cualquier proxy individual.
+ * Manejo de errores HTTP:
+ *   401 → API Key inválida o expirada
+ *   429 → Límite de peticiones superado (10/min en plan gratuito)
+ *   404 → Categoría o recurso no encontrado
+ *   Otros → Error genérico del servidor
  *
- * Formato de cada entrada:
- *   buildUrl(targetUrl) → URL completa del proxy para esa URL destino
- *   parseResponse(res)  → extrae el JSON final de la respuesta del proxy
- *
- * Proxies incluidos:
- *   1. corsproxy.io  — muy confiable, respuesta directa (texto plano)
- *   2. allorigins    — clásico, envuelve en { contents: ... }
- *   3. thingproxy    — alternativa simple (texto plano)
- */
-/**
- * Proxies CORS verificados y activos en 2025.
- * Cada uno tiene un formato de respuesta diferente, por eso cada entrada
- * define su propio buildUrl() y parseResponse() para abstraer esas diferencias.
- *
- * Orden elegido por confiabilidad y rate limit:
- *   1. cloudflare-cors-anywhere — espeja el status HTTP real, sin rate limit conocido
- *   2. allorigins               — clásico y estable, 20 req/min, envuelve en {contents}
- *   3. codetabs                 — solo GET pero 5 req/seg, respuesta directa
- *   4. cors-anywhere (heroku)   — el original, 50 req/hora, requiere header Origin
- */
-const CORS_PROXIES = [
-  {
-    name: 'cloudflare-cors-anywhere',
-    buildUrl: t => `https://cloudflare-cors-anywhere.hugeeducation.workers.dev/?${t}`,
-    parseResponse: async res => {
-      const text = await res.text();
-      return JSON.parse(text);
-    }
-  },
-  {
-    name: 'allorigins',
-    buildUrl: t => `https://api.allorigins.win/get?url=${encodeURIComponent(t)}`,
-    parseResponse: async res => {
-      const wrapper = await res.json();
-      if (!wrapper.contents) throw new Error('allorigins: respuesta vacía');
-      return JSON.parse(wrapper.contents);
-    }
-  },
-  {
-    name: 'codetabs',
-    buildUrl: t => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(t)}`,
-    parseResponse: async res => {
-      const text = await res.text();
-      return JSON.parse(text);
-    }
-  },
-  {
-    name: 'cors-anywhere',
-    buildUrl: t => `https://cors-anywhere.herokuapp.com/${t}`,
-    parseResponse: async res => {
-      const text = await res.text();
-      return JSON.parse(text);
-    },
-    extraHeaders: { 'X-Requested-With': 'XMLHttpRequest' }
-  },
-];
-
-/**
- * Petición DIRECTA a la NYT API (sin proxy).
- * Funciona para: /lists/current/*, /lists/overview.json, /lists/{date}/*.
- * Estos endpoints responden con CORS habilitado para peticiones de browser.
+ * @param {string} endpoint - Ruta relativa, ej: '/lists/current/hardcover-fiction.json'
+ * @param {Object} params   - Parámetros adicionales de query string (opcionales)
+ * @returns {Promise<Object>} Datos JSON de la respuesta de la API
+ * @throws {Error} Si la petición falla o la API retorna un error
  */
 async function fetchNYT(endpoint, params = {}) {
+  // Verificar que existe una API Key antes de hacer la petición
   const apiKey = obtenerApiKey();
+  if (!apiKey) {
+    cambiarApiKey(); // Abrir el modal para que el usuario ingrese su clave
+    throw new Error('Configura tu API Key para continuar.');
+  }
+
+  // Construir la URL completa con el endpoint recibido
   const url = new URL(`${NYT_BASE}${endpoint}`);
+
+  // La API Key se envía como parámetro "api-key" en la URL (requerido por NYT)
   url.searchParams.append('api-key', apiKey);
+
+  // Agregar cualquier parámetro adicional (ej: fecha, categoría)
   Object.entries(params).forEach(([k, v]) => url.searchParams.append(k, v));
+
+  // El documento del ejercicio indica usar language=es-ES cuando sea posible
+  // para que la API retorne descripciones en español si están disponibles
+  url.searchParams.append('language', 'es-ES');
+
   const urlStr = url.toString();
 
+  // Si ya tenemos esta respuesta en caché, retornarla directamente
+  // para no gastar peticiones del límite de la API
   if (cache[urlStr]) return cache[urlStr];
 
+  // Realizar la petición HTTP GET
   const res = await fetch(urlStr);
-  manejarErrorHTTP(res);
+
+  // Interpretar los códigos de error HTTP con mensajes descriptivos
+  if (res.status === 401) throw new Error('API Key inválida. Verifica tu clave en developer.nytimes.com');
+  if (res.status === 429) throw new Error('Límite de peticiones excedido (10/min). Espera unos segundos.');
+  if (res.status === 404) throw new Error('Lista o recurso no encontrado en la API.');
+  if (!res.ok) throw new Error(`Error del servidor NYT (código ${res.status}).`);
+
+  // Parsear el JSON de la respuesta
   const data = await res.json();
+
+  // Guardar en caché para evitar repetir esta petición en los próximos 5 min
   guardarEnCache(urlStr, data);
+
   return data;
 }
 
 /**
- * Petición VÍA PROXY CORS con fallback automático entre múltiples proxies.
+ * Guarda una respuesta en el caché en memoria con un TTL de 5 minutos.
+ * Después del tiempo límite, la entrada se elimina automáticamente
+ * y la siguiente petición igual irá a la red.
  *
- * Intenta cada proxy de CORS_PROXIES en orden. Si uno falla (caído,
- * timeout, respuesta inválida), pasa al siguiente automáticamente.
- * Solo lanza error si TODOS los proxies fallan.
- *
- * Necesario para:
- *   - /lists/names.json
- *   - /lists/best-sellers/history.json
- *   - /reviews.json
+ * @param {string} key   - URL completa usada como clave del caché
+ * @param {Object} data  - Datos JSON a guardar
  */
-async function fetchNYTProxy(endpoint, params = {}) {
-  const apiKey = obtenerApiKey();
-  const url = new URL(`${NYT_BASE}${endpoint}`);
-  url.searchParams.append('api-key', apiKey);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.append(k, v));
-  const urlStr = url.toString();
-
-  if (cache[urlStr]) return cache[urlStr];
-
-  let ultimoError = null;
-
-  // Intentar cada proxy en orden hasta que uno funcione
-  for (const proxy of CORS_PROXIES) {
-    try {
-      const proxyUrl = proxy.buildUrl(urlStr);
-
-      // Timeout de 8 segundos por proxy para no esperar eternamente
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 8000);
-
-      // Algunos proxies (ej: cors-anywhere) requieren headers adicionales
-      const fetchOpts = { signal: controller.signal };
-      if (proxy.extraHeaders) fetchOpts.headers = proxy.extraHeaders;
-      const res = await fetch(proxyUrl, fetchOpts);
-      clearTimeout(timer);
-
-      if (!res.ok) {
-        ultimoError = new Error(`${proxy.name}: HTTP ${res.status}`);
-        continue; // Intentar siguiente proxy
-      }
-
-      const data = await proxy.parseResponse(res);
-
-      // Verificar errores dentro del JSON de la NYT
-      if (data.fault) {
-        const msg = data.fault.faultstring || 'Error de la API';
-        if (msg.toLowerCase().includes('api key') || msg.includes('401')) {
-          throw new Error('API Key inválida. Verifica tu clave en developer.nytimes.com');
-        }
-        throw new Error(msg);
-      }
-
-      // Éxito — guardar en caché y retornar
-      guardarEnCache(urlStr, data);
-      return data;
-
-    } catch (err) {
-      // AbortError = timeout, otros = fallo del proxy
-      if (err.message.includes('API Key')) throw err; // Error de auth, no reintentar
-      ultimoError = err;
-      // Continuar al siguiente proxy
-    }
-  }
-
-  // Todos los proxies fallaron
-  throw new Error(
-    `No se pudo conectar con la API. Todos los proxies fallaron. ` +
-    `Verifica tu conexión a internet. (Último error: ${ultimoError?.message})`
-  );
-}
-
-/** Lanza un error descriptivo según el código HTTP de la respuesta */
-function manejarErrorHTTP(res) {
-  if (res.status === 401) throw new Error('API Key inválida. Verifica tu clave en developer.nytimes.com');
-  if (res.status === 429) throw new Error('Límite de peticiones excedido (máx. 10/min). Espera unos segundos.');
-  if (res.status === 404) throw new Error('Lista o recurso no encontrado.');
-  if (!res.ok) throw new Error(`Error del servidor (${res.status}).`);
-}
-
-/** Guarda datos en caché durante 5 minutos */
 function guardarEnCache(key, data) {
   cache[key] = data;
+  // setTimeout elimina la entrada después de 5 minutos (300.000 ms)
   setTimeout(() => delete cache[key], 5 * 60 * 1000);
 }
 
-// ─────────────────────────────────────────────
-// ENDPOINT 1 — Best Sellers por categoría
-// GET /lists/current/{list}.json
-// ─────────────────────────────────────────────
 
+// ============================================================
+// SECCIÓN 5 — ENDPOINT 1: BEST SELLERS POR CATEGORÍA
+// NYT Books API: GET /lists/current/{list}.json
+// ============================================================
+
+/**
+ * Obtiene y muestra los Best Sellers actuales para la categoría seleccionada.
+ *
+ * Lee el valor del <select> con id="categoriaSelect", construye el endpoint
+ * con ese valor como parte de la URL, y renderiza los resultados como tarjetas.
+ *
+ * Ejemplo de URL generada:
+ *   https://api.nytimes.com/svc/books/v3/lists/current/hardcover-fiction.json?api-key=...
+ *
+ * Datos extraídos del JSON:
+ *   data.results.books → array de libros con título, autor, portada, descripción, etc.
+ */
 async function librosCategoria() {
   const categoria = document.getElementById('categoriaSelect').value;
   const contenedor = document.getElementById('resultado-bestsellers');
+
+  // Mostrar spinner mientras se espera la respuesta
   mostrarCargando(contenedor);
 
   try {
     const data = await fetchNYT(`/lists/current/${categoria}.json`);
     const libros = data.results?.books;
 
+    // Estado vacío: la API respondió pero no hay libros en esa lista
     if (!libros || libros.length === 0) {
       mostrarVacio(contenedor, 'No hay libros disponibles para esta categoría.');
       return;
     }
 
-    contenedor.innerHTML = libros.map((l, i) => crearTarjetaLibro(l, i + 1)).join('');
+    // Renderizar cada libro como tarjeta, pasando su posición (rank) en la lista
+    contenedor.innerHTML = libros.map((l, i) => crearTarjetaNYT(l, i + 1)).join('');
+
+  } catch (err) {
+    // Mostrar el mensaje de error descriptivo al usuario
+    mostrarError(contenedor, err.message);
+  }
+}
+
+
+// ============================================================
+// SECCIÓN 6 — ENDPOINT 2: BEST SELLERS POR FECHA
+// NYT Books API: GET /lists/{date}/{list}.json
+// ============================================================
+
+/**
+ * Obtiene los Best Sellers de una categoría en una fecha específica del pasado.
+ *
+ * Lee la fecha del <input type="date"> y la categoría del segundo <select>,
+ * luego construye la URL con ambos valores.
+ *
+ * Ejemplo de URL generada:
+ *   https://api.nytimes.com/svc/books/v3/lists/2023-06-11/hardcover-fiction.json?api-key=...
+ *
+ * La fecha mínima disponible en la API es 2011-02-13.
+ * Si se ingresa una fecha sin datos, la API retorna un array vacío.
+ */
+async function librosPorFecha() {
+  const fecha = document.getElementById('fechaInput').value;
+  const categoria = document.getElementById('categoriaFechaSelect').value;
+  const contenedor = document.getElementById('resultado-historial');
+
+  // Validar que el usuario haya seleccionado una fecha antes de consultar
+  if (!fecha) {
+    mostrarToast('Selecciona una fecha.', 'error');
+    return;
+  }
+
+  mostrarCargando(contenedor);
+
+  try {
+    const data = await fetchNYT(`/lists/${fecha}/${categoria}.json`);
+    const libros = data.results?.books;
+
+    if (!libros || libros.length === 0) {
+      mostrarVacio(contenedor, 'No hay datos para esa categoría en la fecha seleccionada.');
+      return;
+    }
+
+    // Encabezado informativo con la fecha y lista consultada
+    const header = `
+      <div style="margin-bottom:1rem;padding:0.75rem 1rem;background:var(--surface);
+                  border-radius:8px;border-left:3px solid var(--accent);font-size:0.88rem;color:var(--text2);">
+        📅 Best Sellers del <strong>${formatearFecha(fecha)}</strong>
+        — ${data.results?.list_name || categoria}
+      </div>`;
+
+    contenedor.innerHTML = header + libros.map((l, i) => crearTarjetaNYT(l, i + 1)).join('');
+
   } catch (err) {
     mostrarError(contenedor, err.message);
   }
 }
 
-// ─────────────────────────────────────────────
-// ENDPOINT 2 — Resumen general semanal
-// GET /lists/overview.json
-// ─────────────────────────────────────────────
 
+// ============================================================
+// SECCIÓN 7 — ENDPOINT 3: RESUMEN GENERAL SEMANAL
+// NYT Books API: GET /lists/overview.json
+// ============================================================
+
+/**
+ * Obtiene el resumen semanal: los primeros 5 libros de TODAS las listas del NYT.
+ *
+ * Es el único endpoint que retorna múltiples listas en una sola petición.
+ * Cada lista incluye hasta 5 libros con sus datos básicos.
+ *
+ * Ejemplo de URL generada:
+ *   https://api.nytimes.com/svc/books/v3/lists/overview.json?api-key=...
+ *
+ * Datos extraídos:
+ *   data.results.bestsellers_date → fecha de publicación de la lista
+ *   data.results.lists            → array de listas, cada una con su array de libros
+ */
 async function overview() {
   const contenedor = document.getElementById('resultado-overview');
   mostrarCargando(contenedor);
@@ -353,394 +405,250 @@ async function overview() {
     const listas = data.results?.lists;
 
     if (!listas || listas.length === 0) {
-      mostrarVacio(contenedor, 'No se encontró información del resumen semanal.');
+      mostrarVacio(contenedor, 'No se encontró el resumen semanal.');
       return;
     }
 
+    // Mostrar la fecha de publicación del resumen
     const fecha = data.results?.bestsellers_date || '';
-    let html = `<p style="color:var(--text3);font-size:0.85rem;margin-bottom:1.5rem;">
-      Semana del <strong>${formatearFecha(fecha)}</strong> — ${listas.length} listas
-    </p>`;
+    let html = `
+      <p style="color:var(--text3);font-size:0.85rem;margin-bottom:1.5rem;">
+        Semana del <strong>${formatearFecha(fecha)}</strong> — ${listas.length} listas disponibles
+      </p>`;
 
+    // Por cada lista, crear una fila horizontal con scroll de hasta 5 libros
     listas.forEach(lista => {
       const libros = lista.books?.slice(0, 5) || [];
       html += `
         <div class="overview-list-section">
           <div class="overview-list-title">${lista.list_name}</div>
           <div class="overview-books-row">
-            ${libros.map((l, i) => crearTarjetaLibro(l, i + 1, true)).join('')}
+            ${libros.map((l, i) => crearTarjetaNYT(l, i + 1, true)).join('')}
           </div>
         </div>`;
     });
 
     contenedor.innerHTML = html;
-  } catch (err) {
-    mostrarError(contenedor, err.message);
-  }
-}
-
-// ─────────────────────────────────────────────
-// ENDPOINT 3 — Todas las listas disponibles
-// GET /lists/names.json  (vía proxy CORS)
-// ─────────────────────────────────────────────
-
-async function cargarListas() {
-  const contenedor = document.getElementById('resultado-listas');
-  mostrarCargando(contenedor);
-
-  try {
-    // Este endpoint requiere proxy porque la NYT no envía headers CORS para él
-    const data = await fetchNYTProxy('/lists/names.json');
-    const listas = data.results;
-
-    if (!listas || listas.length === 0) {
-      mostrarVacio(contenedor, 'No se encontraron listas disponibles.');
-      return;
-    }
-
-    contenedor.innerHTML = listas.map(lista => `
-      <div class="lista-card"
-           onclick="irALista('${lista.list_name_encoded}')"
-           title="Ver best sellers de '${lista.display_name}'">
-        <div class="lista-name">${lista.display_name}</div>
-        <div class="lista-freq">Publicación: ${lista.updated === 'WEEKLY' ? 'Semanal' : 'Mensual'}</div>
-        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.4rem;">
-          <span class="lista-tag ${lista.updated === 'WEEKLY' ? 'weekly' : ''}">
-            ${lista.updated === 'WEEKLY' ? '📅 Semanal' : '🗓 Mensual'}
-          </span>
-          ${lista.oldest_published_date ? `<span class="lista-tag">Desde ${lista.oldest_published_date.substring(0,4)}</span>` : ''}
-        </div>
-      </div>`).join('');
 
   } catch (err) {
     mostrarError(contenedor, err.message);
   }
 }
+
+
+// ============================================================
+// SECCIÓN 8 — ENDPOINTS 4 y 5: BUSCAR POR TÍTULO Y POR AUTOR
+// NYT Books API: GET /lists/current/{list}.json ×10 en paralelo
+// ============================================================
 
 /**
- * Navega a Best Sellers y carga la lista seleccionada desde "Todas las Listas".
- * Si el slug no está en el select, lo agrega temporalmente.
+ * Busca un título o un autor dentro de los Best Sellers actuales del NYT.
+ *
+ * Estrategia técnica:
+ *   No existe un endpoint de búsqueda directo con CORS habilitado en NYT.
+ *   Se resuelve consultando 10 categorías en paralelo con Promise.all(),
+ *   y filtrando los resultados localmente por título o autor.
+ *
+ * Esto funciona como dos endpoints distintos según el parámetro `tipo`:
+ *   - tipo='titulo' → Endpoint 4: filtra por libro.title
+ *   - tipo='autor'  → Endpoint 5: filtra por libro.author
+ *
+ * Deduplicación:
+ *   Un mismo libro puede aparecer en varias listas (ej: en hardcover-fiction
+ *   y en combined-print-and-e-book-fiction al mismo tiempo). Se usa un Set
+ *   con el ISBN como clave para mostrar cada libro una sola vez.
+ *
+ * @param {string} tipo - 'titulo' para buscar por título, 'autor' para buscar por autor
  */
-function irALista(listSlug) {
-  const select = document.getElementById('categoriaSelect');
-  const existe = [...select.options].find(o => o.value === listSlug);
-  if (existe) {
-    select.value = listSlug;
-  } else {
-    const label = listSlug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    select.add(new Option(label, listSlug, true, true));
-  }
-  mostrarSeccion('bestsellers', document.querySelector('[data-section="bestsellers"]'));
-  librosCategoria();
-}
+async function buscarEnBestSellers(tipo) {
 
-// ─────────────────────────────────────────────
-// ENDPOINT 4 — Best Sellers por fecha
-// GET /lists/{date}/{list}.json
-// ─────────────────────────────────────────────
+  // Determinar qué input leer y en qué contenedor mostrar resultados
+  const inputId      = tipo === 'titulo' ? 'resenaTituloInput' : 'autorInput';
+  const contenedorId = tipo === 'titulo' ? 'resultado-resenas' : 'resultado-autor';
+  const contenedor   = document.getElementById(contenedorId);
 
-async function librosPorFecha() {
-  const fecha = document.getElementById('fechaInput').value;
-  const categoria = document.getElementById('categoriaFechaSelect').value;
-  const contenedor = document.getElementById('resultado-historial');
+  // Leer la búsqueda del usuario (en minúsculas para comparación insensible a mayúsculas)
+  const query = document.getElementById(inputId).value.trim().toLowerCase();
 
-  if (!fecha) { mostrarToast('Selecciona una fecha.', 'error'); return; }
-
-  mostrarCargando(contenedor);
-
-  try {
-    const data = await fetchNYT(`/lists/${fecha}/${categoria}.json`);
-    const libros = data.results?.books;
-
-    if (!libros || libros.length === 0) {
-      mostrarVacio(contenedor, `No hay datos para "${categoria}" en esa fecha.`);
-      return;
-    }
-
-    const header = `
-      <div style="margin-bottom:1rem;padding:0.75rem 1rem;background:var(--surface);
-                  border-radius:8px;border-left:3px solid var(--accent);font-size:0.88rem;color:var(--text2);">
-        📅 Best Sellers del <strong>${formatearFecha(fecha)}</strong>
-        — ${data.results?.list_name || categoria}
-      </div>`;
-
-    contenedor.innerHTML = header + libros.map((l, i) => crearTarjetaLibro(l, i + 1)).join('');
-  } catch (err) {
-    mostrarError(contenedor, err.message);
-  }
-}
-
-// ─────────────────────────────────────────────
-// ENDPOINT 5 — Búsqueda por título en historial
-// GET /lists/best-sellers/history.json?title=  (vía proxy CORS)
-// ─────────────────────────────────────────────
-
-async function buscarLibro() {
-  const query = document.getElementById('buscarLibroInput').value.trim();
-  const contenedor = document.getElementById('resultado-buscar');
-
-  if (!query) { mostrarToast('Escribe un título para buscar.', 'error'); return; }
-  mostrarCargando(contenedor);
-
-  try {
-    // Requiere proxy: este endpoint tiene restricción CORS en browser
-    const data = await fetchNYTProxy('/lists/best-sellers/history.json', { title: query });
-    const libros = data.results;
-
-    if (!libros || libros.length === 0) {
-      mostrarVacio(contenedor, `No se encontraron resultados para "${query}".`);
-      return;
-    }
-
-    contenedor.innerHTML = libros.map(l => crearTarjetaHistorial(l)).join('');
-  } catch (err) {
-    mostrarError(contenedor, err.message);
-  }
-}
-
-// ─────────────────────────────────────────────
-// ENDPOINT 6 — Búsqueda por autor en historial
-// GET /lists/best-sellers/history.json?author=  (vía proxy CORS)
-// ─────────────────────────────────────────────
-
-async function buscarAutor() {
-  const query = document.getElementById('buscarAutorInput').value.trim();
-  const contenedor = document.getElementById('resultado-buscar');
-
-  if (!query) { mostrarToast('Escribe un autor para buscar.', 'error'); return; }
-  mostrarCargando(contenedor);
-
-  try {
-    const data = await fetchNYTProxy('/lists/best-sellers/history.json', { author: query });
-    const libros = data.results;
-
-    if (!libros || libros.length === 0) {
-      mostrarVacio(contenedor, `No se encontraron libros de "${query}".`);
-      return;
-    }
-
-    const header = `
-      <div style="margin-bottom:1rem;padding:0.75rem 1rem;background:var(--surface);
-                  border-radius:8px;border-left:3px solid var(--gold);font-size:0.88rem;color:var(--text2);">
-        ✍️ <strong>${libros.length}</strong> libro(s) encontrados de <strong>${query}</strong>
-      </div>`;
-
-    contenedor.innerHTML = header + libros.map(l => crearTarjetaHistorial(l)).join('');
-  } catch (err) {
-    mostrarError(contenedor, err.message);
-  }
-}
-
-// ─────────────────────────────────────────────
-// ENDPOINT 7 — Reseñas por título, autor o ISBN
-// GET /reviews.json  (vía proxy CORS)
-// ─────────────────────────────────────────────
-
-async function buscarResena(tipo) {
-  const contenedor = document.getElementById('resultado-resenas');
-  let params = {}, query = '';
-
-  if (tipo === 'titulo') {
-    query = document.getElementById('resenaTituloInput').value.trim();
-    params = { title: query };
-  } else if (tipo === 'autor') {
-    query = document.getElementById('resenaAutorInput').value.trim();
-    params = { author: query };
-  } else if (tipo === 'isbn') {
-    query = document.getElementById('resenaIsbnInput').value.trim().replace(/-/g, '');
-    params = { isbn: query };
-  }
-
-  if (!query) { mostrarToast('Ingresa un término de búsqueda.', 'error'); return; }
-  mostrarCargando(contenedor);
-
-  try {
-    // Requiere proxy: /reviews.json bloquea peticiones desde el browser
-    const data = await fetchNYTProxy('/reviews.json', params);
-    const resenas = data.results;
-
-    if (!resenas || resenas.length === 0) {
-      mostrarVacio(contenedor, `No se encontraron reseñas para "${query}".`);
-      return;
-    }
-
-    contenedor.innerHTML = resenas.map(r => crearTarjetaResena(r)).join('');
-  } catch (err) {
-    mostrarError(contenedor, err.message);
-  }
-}
-
-// ─────────────────────────────────────────────
-// COMPARAR LIBROS (función extra)
-// Usa historial (proxy) para buscar 2 libros en paralelo
-// ─────────────────────────────────────────────
-
-async function compararLibros() {
-  const tituloA = document.getElementById('compararLibroA').value.trim();
-  const tituloB = document.getElementById('compararLibroB').value.trim();
-  const contenedor = document.getElementById('resultado-comparar');
-
-  if (!tituloA || !tituloB) {
-    mostrarToast('Ingresa los títulos de ambos libros.', 'error');
+  if (!query) {
+    mostrarToast('Ingresa un término de búsqueda.', 'error');
     return;
   }
 
-  contenedor.innerHTML = '<div class="spinner"></div>';
+  mostrarCargando(contenedor);
 
   try {
-    // Peticiones en paralelo para mayor velocidad
-    const [dataA, dataB] = await Promise.all([
-      fetchNYTProxy('/lists/best-sellers/history.json', { title: tituloA }),
-      fetchNYTProxy('/lists/best-sellers/history.json', { title: tituloB }),
-    ]);
+    /**
+     * Lanzar todas las peticiones en paralelo con Promise.all().
+     * Cada petición usa .catch() propio para que si una categoría falla
+     * (por ejemplo, está temporalmente caída), las demás siguen funcionando
+     * y el usuario recibe resultados parciales en lugar de un error total.
+     */
+    const peticiones = CATEGORIAS_BUSQUEDA.map(cat =>
+      fetchNYT(`/lists/current/${cat}.json`)
+        .then(data => ({
+          libros: data.results?.books || [],
+          listaNombre: data.results?.list_name || cat
+        }))
+        .catch(() => ({ libros: [], listaNombre: cat })) // Fallo silencioso por categoría
+    );
 
-    const libroA = dataA.results?.[0] || null;
-    const libroB = dataB.results?.[0] || null;
+    const resultados = await Promise.all(peticiones);
 
-    contenedor.innerHTML =
-      renderizarComparacion(libroA, 'Libro A', tituloA) +
-      renderizarComparacion(libroB, 'Libro B', tituloB);
+    // Filtrar y deduplicar resultados
+    const encontrados = [];
+    const vistos = new Set(); // Evitar mostrar el mismo libro dos veces
+
+    resultados.forEach(({ libros, listaNombre }) => {
+      libros.forEach(libro => {
+        const titulo = (libro.title || '').toLowerCase();
+        const autor  = (libro.author || libro.contributor || '').toLowerCase();
+
+        // Usar ISBN como clave única; si no hay, usar el título
+        const clave = libro.primary_isbn13 || libro.title;
+
+        // Verificar si el libro coincide con la búsqueda según el tipo
+        const coincide = tipo === 'titulo'
+          ? titulo.includes(query)
+          : autor.includes(query);
+
+        // Agregar solo si coincide y no lo hemos visto antes
+        if (coincide && !vistos.has(clave)) {
+          vistos.add(clave);
+          // Guardar el nombre de la lista para mostrarlo en la tarjeta
+          encontrados.push({ ...libro, _listaNombre: listaNombre });
+        }
+      });
+    });
+
+    // Estado vacío: búsqueda válida pero sin coincidencias esta semana
+    if (encontrados.length === 0) {
+      mostrarVacio(contenedor,
+        `No se encontró "<strong>${query}</strong>" en los Best Sellers actuales del NYT.<br>
+         <small>Solo aparecen libros que están en las listas esta semana.</small>`
+      );
+      return;
+    }
+
+    // Encabezado con conteo de resultados
+    const header = `
+      <div style="margin-bottom:1rem;padding:0.75rem 1rem;background:var(--surface);
+                  border-radius:8px;border-left:3px solid var(--accent);font-size:0.88rem;color:var(--text2);">
+        🔎 <strong>${encontrados.length}</strong> resultado(s) para
+        "<strong>${query}</strong>" en las listas NYT actuales
+      </div>`;
+
+    contenedor.innerHTML = header + encontrados.map(l => crearTarjetaBestSellerBusqueda(l)).join('');
 
   } catch (err) {
     mostrarError(contenedor, err.message);
   }
 }
 
-function renderizarComparacion(libro, label, busqueda) {
-  if (!libro) {
-    return `
-      <div class="comparar-book">
-        <div class="comparar-book-header">${label}</div>
-        <div style="padding:2rem;text-align:center;color:var(--text3);">
-          <span style="font-size:2rem;">🔍</span>
-          <p style="margin-top:0.5rem;">No se encontró "<strong>${busqueda}</strong>"</p>
-          <p style="font-size:0.8rem;margin-top:0.3rem;">Solo aparecen libros que alguna vez estuvieron en el NYT Best Sellers.</p>
-        </div>
-      </div>`;
-  }
 
-  const portada = libro.book_image || IMG_FALLBACK;
-  const ranksHistory = libro.ranks_history || [];
-  const mejorPos = ranksHistory.length ? Math.min(...ranksHistory.map(r => r.rank)) : 'N/A';
-  const totalSemanas = ranksHistory.reduce((acc, r) => acc + (r.weeks_on_list || 0), 0);
-  const primeraLista = ranksHistory[0]?.list_name || ranksHistory[0]?.list || 'N/A';
+// ============================================================
+// SECCIÓN 9 — RENDERIZADO DE TARJETAS
+// ============================================================
 
-  return `
-    <div class="comparar-book">
-      <div class="comparar-book-header">${label}</div>
-      <div class="comparar-book-body">
-        <img src="${portada}" alt="Portada" class="comparar-book-cover"
-             onerror="this.src='${IMG_FALLBACK}'">
-        <div class="comparar-book-details">
-          <div class="comparar-book-title">${libro.title || 'Sin título'}</div>
-          <div class="comparar-book-author">por ${libro.author || 'Desconocido'}</div>
-          <div class="comparar-stat"><span>Mejor posición</span><span>#${mejorPos}</span></div>
-          <div class="comparar-stat"><span>Semanas en lista</span><span>${totalSemanas || 'N/A'}</span></div>
-          <div class="comparar-stat"><span>Apariciones</span><span>${ranksHistory.length}</span></div>
-          <div class="comparar-stat"><span>Primera lista</span><span style="font-size:0.75rem">${primeraLista}</span></div>
-          ${libro.publisher ? `<div class="comparar-stat"><span>Editorial</span><span>${libro.publisher}</span></div>` : ''}
-          ${libro.description ? `<p style="font-size:0.78rem;color:var(--text3);margin-top:0.6rem;line-height:1.4;">${libro.description.substring(0,120)}…</p>` : ''}
-        </div>
-      </div>
-    </div>`;
-}
-
-// ─────────────────────────────────────────────
-// RENDERIZADO DE TARJETAS
-// ─────────────────────────────────────────────
-
-/** Tarjeta de libro estándar para listas de best sellers */
-function crearTarjetaLibro(libro, rank = null, compacto = false) {
-  const portada = libro.book_image || IMG_FALLBACK;
-  const titulo = libro.title || 'Sin título';
-  const autor = libro.author || libro.contributor || 'Autor desconocido';
-  const desc = libro.description || '';
-  const enlace = libro.amazon_product_url || libro.buy_links?.[0]?.url || '';
-  const semanas = libro.weeks_on_list;
+/**
+ * Genera el HTML de una tarjeta de libro estándar para listas NYT.
+ *
+ * Muestra: portada (con fallback si no existe), posición en la lista,
+ * badge de semanas en lista, título, autor, descripción y enlace de compra.
+ *
+ * @param {Object}  libro    - Objeto de libro retornado por la NYT Books API
+ * @param {number}  rank     - Posición del libro en la lista (1, 2, 3...)
+ * @param {boolean} compacto - Si es true, omite la descripción (para el overview)
+ * @returns {string} HTML de la tarjeta como string
+ */
+function crearTarjetaNYT(libro, rank = null, compacto = false) {
+  const portada  = libro.book_image || IMG_FALLBACK;
+  const titulo   = libro.title      || 'Sin título';
+  const autor    = libro.author     || libro.contributor || 'Autor desconocido';
+  const desc     = libro.description || '';
+  const enlace   = libro.amazon_product_url || libro.buy_links?.[0]?.url || '';
+  const semanas  = libro.weeks_on_list; // Número de semanas que lleva en la lista
 
   return `
     <div class="book-card">
       <div class="book-cover-wrap">
-        <img class="book-cover" src="${portada}" alt="${titulo}"
+        <!-- onerror muestra la imagen de respaldo si la portada falla al cargar -->
+        <img class="book-cover" src="${portada}" alt="Portada de ${titulo}"
              loading="lazy" onerror="this.src='${IMG_FALLBACK}'">
+        <!-- Badge de posición en la lista, solo si se proporcionó rank -->
         ${rank ? `<div class="book-rank">${rank}</div>` : ''}
+        <!-- Badge de semanas, solo si el dato existe -->
         ${semanas ? `<div class="book-weeks-badge">${semanas} sem.</div>` : ''}
       </div>
       <div class="book-info">
         <div class="book-title">${titulo}</div>
         <div class="book-author">${autor}</div>
+        <!-- Descripción omitida en modo compacto (usado en el overview) -->
         ${!compacto && desc ? `<div class="book-desc">${desc}</div>` : ''}
         ${enlace ? `<a class="book-buy-link" href="${enlace}" target="_blank" rel="noopener">Comprar →</a>` : ''}
       </div>
     </div>`;
 }
 
-/** Tarjeta para resultados del historial de best sellers (layout horizontal) */
-function crearTarjetaHistorial(libro) {
-  const portada = libro.book_image || IMG_FALLBACK;
-  const titulo = libro.title || 'Sin título';
-  const autor = libro.author || 'Autor desconocido';
-  const desc = libro.description || '';
-  const ranksHistory = libro.ranks_history || [];
-  const listas = [...new Set(ranksHistory.map(r => r.list_name || r.list || ''))].filter(Boolean);
-  const mejorPos = ranksHistory.length ? Math.min(...ranksHistory.map(r => r.rank)) : null;
-
-  return `
-    <div class="book-card" style="flex-direction:row;max-width:100%;min-width:0;">
-      <div class="book-cover-wrap" style="width:90px;min-width:90px;aspect-ratio:2/3;border-radius:8px 0 0 8px;">
-        <img class="book-cover" src="${portada}" alt="${titulo}"
-             loading="lazy" onerror="this.src='${IMG_FALLBACK}'" style="border-radius:0;">
-        ${mejorPos ? `<div class="book-rank">#${mejorPos}</div>` : ''}
-      </div>
-      <div class="book-info" style="padding:1rem;">
-        <div class="book-title" style="-webkit-line-clamp:1;">${titulo}</div>
-        <div class="book-author">${autor}</div>
-        ${desc ? `<div class="book-desc" style="-webkit-line-clamp:2;">${desc}</div>` : ''}
-        ${libro.publisher ? `<div style="font-size:0.74rem;color:var(--text3);margin-top:0.25rem;">📖 ${libro.publisher}</div>` : ''}
-        ${listas.length > 0 ? `
-          <div style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.25rem;">
-            ${listas.slice(0, 3).map(l => `<span style="font-size:0.68rem;background:var(--bg2);color:var(--text2);padding:0.15em 0.5em;border-radius:4px;">${l}</span>`).join('')}
-            ${listas.length > 3 ? `<span style="font-size:0.68rem;color:var(--text3);">+${listas.length - 3} más</span>` : ''}
-          </div>` : ''}
-      </div>
-    </div>`;
-}
-
-/** Tarjeta para reseñas literarias del NYT */
-function crearTarjetaResena(resena) {
-  const portada = resena.book_image || resena.multimedia?.[0]?.url || IMG_FALLBACK;
-  const titulo = resena.book_title || 'Sin título';
-  const autor = resena.book_author || 'Autor desconocido';
-  const summary = resena.summary || 'Reseña del New York Times.';
-  const byline = resena.byline || '';
-  const fecha = resena.publication_dt ? formatearFecha(resena.publication_dt) : '';
-  const url = resena.url || '';
+/**
+ * Genera el HTML de una tarjeta para resultados de búsqueda en Best Sellers.
+ *
+ * A diferencia de crearTarjetaNYT, esta tarjeta usa layout horizontal
+ * (imagen a la izquierda, info a la derecha) y muestra metadatos adicionales:
+ * nombre de la lista, posición actual y semanas en lista.
+ *
+ * @param {Object} libro - Objeto de libro enriquecido con _listaNombre
+ * @returns {string} HTML de la tarjeta como string
+ */
+function crearTarjetaBestSellerBusqueda(libro) {
+  const portada  = libro.book_image || IMG_FALLBACK;
+  const titulo   = libro.title      || 'Sin título';
+  const autor    = libro.author     || libro.contributor || 'Autor desconocido';
+  const desc     = libro.description || '';
+  const enlace   = libro.amazon_product_url || libro.buy_links?.[0]?.url || '';
+  const semanas  = libro.weeks_on_list;
+  const lista    = libro._listaNombre || ''; // Nombre de la lista de origin (agregado en buscarEnBestSellers)
+  const rank     = libro.rank;               // Posición actual en la lista
 
   return `
     <div class="resena-card">
-      <img class="resena-thumb" src="${portada}" alt="${titulo}"
-           loading="lazy" onerror="this.src='${IMG_FALLBACK}'">
+      <img class="resena-thumb" src="${portada}" alt="Portada de ${titulo}"
+           loading="lazy" onerror="this.src='${IMG_FALLBACK}'"
+           style="width:90px;border-radius:6px;">
       <div class="resena-info">
         <div class="resena-title">${titulo}</div>
         <div class="resena-author">por ${autor}</div>
-        <div class="resena-summary">${summary}</div>
-        <div class="resena-meta">
-          ${byline ? `<span>✍️ ${byline}</span>` : ''}
-          ${fecha ? `<span>📅 ${fecha}</span>` : ''}
+        ${desc ? `<div class="resena-summary">${desc}</div>` : ''}
+        <div class="resena-meta" style="margin-top:0.5rem;">
+          ${lista   ? `<span>📋 ${lista}</span>`            : ''}
+          ${rank    ? `<span>🏆 Posición #${rank}</span>`   : ''}
+          ${semanas ? `<span>📅 ${semanas} semana(s)</span>` : ''}
         </div>
-        ${url ? `<a class="resena-link" href="${url}" target="_blank" rel="noopener">Leer reseña completa →</a>` : ''}
+        ${enlace ? `<a class="resena-link" href="${enlace}" target="_blank" rel="noopener" style="margin-top:0.5rem;">Comprar →</a>` : ''}
       </div>
     </div>`;
 }
 
-// ─────────────────────────────────────────────
-// ESTADOS DE UI
-// ─────────────────────────────────────────────
 
+// ============================================================
+// SECCIÓN 10 — ESTADOS DE LA INTERFAZ
+// ============================================================
+
+/**
+ * Muestra un spinner de carga animado dentro del contenedor indicado.
+ * Se llama al inicio de cada petición para dar retroalimentación visual.
+ * @param {HTMLElement} c - Elemento contenedor donde mostrar el spinner
+ */
 function mostrarCargando(c) {
   c.innerHTML = '<div class="spinner"></div>';
 }
 
+/**
+ * Muestra un estado vacío (sin resultados) con icono y mensaje personalizado.
+ * Se usa cuando la petición fue exitosa pero la API no retornó datos.
+ * @param {HTMLElement} c   - Elemento contenedor
+ * @param {string}      msg - Mensaje descriptivo para el usuario (acepta HTML)
+ */
 function mostrarVacio(c, msg) {
   c.innerHTML = `
     <div class="state-box">
@@ -750,6 +658,12 @@ function mostrarVacio(c, msg) {
     </div>`;
 }
 
+/**
+ * Muestra un estado de error con icono y mensaje del error capturado.
+ * Se usa dentro de los bloques catch para comunicar el problema al usuario.
+ * @param {HTMLElement} c   - Elemento contenedor
+ * @param {string}      msg - Mensaje de error (generado en fetchNYT o en la función llamante)
+ */
 function mostrarError(c, msg) {
   c.innerHTML = `
     <div class="state-box error">
@@ -759,52 +673,77 @@ function mostrarError(c, msg) {
     </div>`;
 }
 
-// ─────────────────────────────────────────────
-// NAVEGACIÓN
-// ─────────────────────────────────────────────
 
+// ============================================================
+// SECCIÓN 11 — NAVEGACIÓN Y SIDEBAR
+// ============================================================
+
+/**
+ * Activa una sección del contenido principal y actualiza el estado visual del sidebar.
+ *
+ * Oculta todas las secciones (.section) y muestra solo la solicitada.
+ * Actualiza el botón activo del sidebar y el título en la barra superior.
+ * En pantallas pequeñas, cierra automáticamente el sidebar.
+ *
+ * @param {string}      id  - ID de la sección a mostrar (sin el prefijo 'sec-')
+ * @param {HTMLElement} btn - Botón del sidebar que disparó la navegación
+ */
 function mostrarSeccion(id, btn) {
+  // Desactivar todas las secciones
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+
+  // Activar la sección solicitada
   document.getElementById(`sec-${id}`).classList.add('active');
+
+  // Actualizar el estado visual del nav del sidebar
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (btn) btn.classList.add('active');
+
+  // Actualizar el título de la barra superior
   const topbarTitle = document.getElementById('topbarTitle');
-  if (topbarTitle && btn) topbarTitle.textContent = btn.textContent.trim().replace(/^[^\s]+\s/, '');
+  if (topbarTitle && btn) {
+    // Eliminar el emoji del inicio para mostrar solo el texto del botón
+    topbarTitle.textContent = btn.textContent.trim().replace(/^[^\s]+\s/, '');
+  }
+
+  // En móvil, cerrar el sidebar al navegar para liberar espacio
   if (window.innerWidth <= 768) toggleSidebar(false);
 }
 
-function activarTab(tabId, btn) {
-  document.querySelectorAll('#sec-buscar .tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('#sec-buscar .tab').forEach(t => t.classList.remove('active'));
-  document.getElementById(`tab-${tabId}`).classList.add('active');
-  btn.classList.add('active');
-}
-
-function activarTabResena(tabId, btn) {
-  document.querySelectorAll('#sec-resenas .tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('#sec-resenas .tab').forEach(t => t.classList.remove('active'));
-  document.getElementById(`tab-${tabId}`).classList.add('active');
-  btn.classList.add('active');
-}
-
+/**
+ * Abre o cierra el sidebar lateral.
+ * En móvil también activa/desactiva el overlay oscuro de fondo.
+ *
+ * @param {boolean|undefined} forzar - true: abrir, false: cerrar, undefined: alternar
+ */
 function toggleSidebar(forzar) {
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sidebarOverlay');
-  const abrir = forzar === undefined ? !sidebar.classList.contains('open') : forzar;
+  const abrir   = forzar === undefined ? !sidebar.classList.contains('open') : forzar;
   sidebar.classList.toggle('open', abrir);
   overlay?.classList.toggle('active', abrir);
 }
 
-// ─────────────────────────────────────────────
-// TEMA OSCURO / CLARO
-// ─────────────────────────────────────────────
 
+// ============================================================
+// SECCIÓN 12 — MODO OSCURO / CLARO
+// ============================================================
+
+/**
+ * Alterna entre tema claro y oscuro añadiendo/quitando la clase 'dark' en <body>.
+ * Guarda la preferencia en localStorage para recordarla entre sesiones.
+ * Actualiza el texto del botón de tema en el sidebar.
+ */
 function toggleTheme() {
   const isDark = document.body.classList.toggle('dark');
   localStorage.setItem('nyt_theme', isDark ? 'dark' : 'light');
   document.getElementById('themeBtn').textContent = isDark ? '☀️ Modo Claro' : '🌙 Modo Oscuro';
 }
 
+/**
+ * Aplica el tema guardado en localStorage al cargar la página.
+ * Se llama en DOMContentLoaded para evitar el parpadeo (flash) de tema.
+ */
 function aplicarTemaGuardado() {
   if (localStorage.getItem('nyt_theme') === 'dark') {
     document.body.classList.add('dark');
@@ -813,10 +752,18 @@ function aplicarTemaGuardado() {
   }
 }
 
-// ─────────────────────────────────────────────
-// TOAST
-// ─────────────────────────────────────────────
 
+// ============================================================
+// SECCIÓN 13 — NOTIFICACIONES TOAST
+// ============================================================
+
+/**
+ * Muestra una notificación tipo "toast" en la esquina inferior derecha.
+ * Desaparece automáticamente después de 3.5 segundos.
+ *
+ * @param {string} msg  - Texto del mensaje a mostrar
+ * @param {string} tipo - 'error' (rojo), 'success' (verde), '' (neutro)
+ */
 function mostrarToast(msg, tipo = '') {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
@@ -824,15 +771,30 @@ function mostrarToast(msg, tipo = '') {
   setTimeout(() => toast.classList.remove('show'), 3500);
 }
 
-// ─────────────────────────────────────────────
-// UTILIDADES
-// ─────────────────────────────────────────────
 
+// ============================================================
+// SECCIÓN 14 — UTILIDADES
+// ============================================================
+
+/**
+ * Formatea una fecha en formato ISO (YYYY-MM-DD) a texto legible en español.
+ * Usa la configuración regional colombiana (es-CO).
+ *
+ * Ejemplo: '2024-03-15' → '15 de marzo de 2024'
+ *
+ * @param {string} fechaStr - Fecha en formato YYYY-MM-DD
+ * @returns {string} Fecha formateada o el string original si falla el parseo
+ */
 function formatearFecha(fechaStr) {
   if (!fechaStr) return '';
   try {
+    // Se agrega T00:00:00 para evitar problemas de zona horaria
     return new Date(fechaStr + 'T00:00:00').toLocaleDateString('es-CO', {
-      year: 'numeric', month: 'long', day: 'numeric'
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
-  } catch { return fechaStr; }
+  } catch {
+    return fechaStr; // Si falla, retornar el string tal como vino
+  }
 }

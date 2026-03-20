@@ -1,0 +1,16 @@
+# ─────────────────────────────────────────────
+# .gitignore — NYT Books Explorer
+# ─────────────────────────────────────────────
+
+# Archivo de configuración local con la API Key
+config.js
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo

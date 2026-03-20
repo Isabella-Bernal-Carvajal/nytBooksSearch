@@ -1,32 +1,97 @@
 /* =============================================
-   NYT BOOKS EXPLORER — Style Sheet
-   Diseño editorial refinado inspirado en el NYT
-   ============================================= */
+    NYT BOOKS EXPLORER — style.css
+    Ejercicio: Consumo de APIs — NYT Books API
+    Aprendiz: Isabella Bernal Carvajal
+    =============================================
 
-/* --- Variables & Reset --- */
+    ESTRUCTURA DE ESTE ARCHIVO:
+    ─────────────────────────────
+    1.  Variables CSS y Reset
+    2.  Modo oscuro (body.dark)
+    3.  Layout base (body, html)
+    4.  Modal de API Key
+    5.  Notificaciones Toast
+    6.  Sidebar de navegación
+    7.  Área de contenido principal
+    8.  Secciones y encabezados
+    9.  Controles (selects, inputs, botones)
+    10. Grilla de tarjetas de libros
+    11. Tarjeta de libro (book-card)
+    12. Sección de Resumen General (overview)
+    13. Sección de Búsqueda (resena-card)
+    14. Estados de UI (cargando, vacío, error)
+    15. Animaciones
+    16. Responsive (tablet y móvil)
+    ============================================= */
+
+
+  /* =============================================
+    1. VARIABLES CSS Y RESET
+    Variables globales que definen toda la paleta
+    de colores, tipografía y espaciados del diseño.
+    Cambiar una variable aquí afecta toda la app.
+   ============================================= */
 :root {
-  --bg: #f5f0e8;
-  --bg2: #ede7d9;
-  --surface: #ffffff;
-  --surface2: #faf7f2;
-  --border: #d9d0c0;
-  --text: #1a1209;
-  --text2: #5a4f3f;
-  --text3: #9a8f7f;
-  --accent: #c41c1c;
-  --accent2: #8b1515;
-  --gold: #b8952a;
-  --sidebar-w: 250px;
-  --topbar-h: 60px;
-  --radius: 8px;
-  --shadow: 0 2px 12px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
-  --font-serif: 'Playfair Display', Georgia, serif;
-  --font-sans: 'DM Sans', system-ui, sans-serif;
+  /* Colores de fondo — del más claro al más oscuro */
+  --bg: #f5f0e8;          /* Fondo principal (tono papel envejecido) */
+  --bg2: #ede7d9;         /* Fondo secundario para inputs y hover */
+  --surface: #ffffff;     /* Superficie de tarjetas y modales */
+  --surface2: #faf7f2;    /* Superficie secundaria */
+  --border: #d9d0c0;      /* Color de bordes y divisores */
+
+  /* Colores de texto — del más oscuro al más tenue */
+  --text: #1a1209;        /* Texto principal */
+  --text2: #5a4f3f;       /* Texto secundario (subtítulos, metadatos) */
+  --text3: #9a8f7f;       /* Texto terciario (hints, placeholders) */
+
+  /* Colores de énfasis */
+  --accent: #c41c1c;      /* Rojo NYT — color primario de acción */
+  --accent2: #8b1515;     /* Rojo oscuro para hover de botones */
+  --gold: #b8952a;        /* Dorado para badges y detalles */
+
+  /* Layout */
+  --sidebar-w: 250px;     /* Ancho fijo del sidebar */
+  --topbar-h: 60px;       /* Altura de la barra superior */
+  --radius: 8px;          /* Border radius estándar */
+
+  /* Sombras */
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);       /* Sombra suave */
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);    /* Sombra pronunciada */
+
+  /* Tipografía — dos familias complementarias */
+  --font-serif: 'Playfair Display', Georgia, serif; /* Títulos editoriales */
+  --font-sans: 'DM Sans', system-ui, sans-serif;    /* Cuerpo y UI */
+
+  /* Transición estándar con curva de aceleración suave */
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Dark mode */
+/* Reset universal — elimina márgenes y paddings por defecto del navegador */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html { scroll-behavior: smooth; }
+
+/* Body como contenedor flex para sidebar + contenido en paralelo */
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background 0.3s, color 0.3s; /* Transición suave al cambiar tema */
+  display: flex;
+}
+
+
+/* =============================================
+   2. MODO OSCURO
+   Al añadir la clase 'dark' al <body> (via JS),
+   se sobreescriben las variables de color con
+   sus equivalentes para fondo oscuro.
+   ============================================= */
 body.dark {
   --bg: #0f0d0a;
   --bg2: #1a1712;
@@ -36,55 +101,53 @@ body.dark {
   --text: #f0e8d8;
   --text2: #b0a898;
   --text3: #706860;
-  --accent: #e53535;
+  --accent: #e53535;      /* Rojo más brillante para contraste en fondo oscuro */
   --gold: #d4aa3a;
   --shadow: 0 2px 12px rgba(0,0,0,0.3);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
 }
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { scroll-behavior: smooth; }
+/* =============================================
+   4. MODAL DE API KEY
+   Se muestra al cargar la app si no hay clave.
+   Se oculta agregando la clase 'hidden'.
+   ============================================= */
 
-body {
-  font-family: var(--font-sans);
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  transition: background 0.3s, color 0.3s;
-  display: flex;
-}
-
-/* --- API KEY MODAL --- */
+/* Overlay de fondo que cubre toda la pantalla */
 .modal-overlay {
-  position: fixed; inset: 0;
-  background: rgba(10,8,5,0.85);
-  backdrop-filter: blur(8px);
-  z-index: 1000;
-  display: flex; align-items: center; justify-content: center;
+  position: fixed;
+  inset: 0;                          /* Equivale a top/right/bottom/left: 0 */
+  background: rgba(10,8,5,0.85);    /* Fondo semitransparente oscuro */
+  backdrop-filter: blur(8px);        /* Desenfoque del contenido de fondo */
+  z-index: 1000;                     /* Por encima de todo el contenido */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 1rem;
 }
-.modal-overlay.hidden { display: none; }
+.modal-overlay.hidden { display: none; }  /* Clase aplicada por JS para cerrar */
 
+/* Caja central del modal con animación de entrada */
 .modal-box {
   background: var(--surface);
   border-radius: 16px;
   padding: 2.5rem 2rem;
-  max-width: 440px; width: 100%;
+  max-width: 440px;
+  width: 100%;
   text-align: center;
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--border);
-  animation: modalIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: modalIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); /* Efecto rebote */
 }
+
+/* Animación de aparición del modal (escala + deslizamiento) */
 @keyframes modalIn {
   from { opacity: 0; transform: scale(0.88) translateY(20px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-.modal-logo {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
+.modal-logo { font-size: 3rem; margin-bottom: 1rem; }
 
 .modal-box h2 {
   font-family: var(--font-serif);
@@ -100,6 +163,7 @@ body {
   line-height: 1.5;
 }
 
+/* Enlace dentro del modal que lleva a la documentación de NYT */
 .modal-hint a {
   color: var(--accent);
   text-decoration: none;
@@ -107,6 +171,7 @@ body {
 }
 .modal-hint a:hover { text-decoration: underline; }
 
+/* Campo de texto para ingresar la API Key */
 .modal-box input {
   width: 100%;
   padding: 0.85rem 1rem;
@@ -119,22 +184,31 @@ body {
   margin: 1.25rem 0 1rem;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
+/* Anillo de enfoque accesible al hacer clic en el input */
 .modal-box input:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(196,28,28,0.12);
 }
 
+/* Nota de seguridad al pie del modal */
 .modal-note {
   font-size: 0.78rem !important;
   color: var(--text3) !important;
   margin-top: 1rem !important;
 }
 
-/* --- TOAST --- */
+
+/* =============================================
+   5. NOTIFICACIONES TOAST
+   Mensajes temporales que aparecen en la esquina
+   inferior derecha. Controlados por JS agregando/
+   quitando la clase 'show'.
+   ============================================= */
 .toast {
   position: fixed;
-  bottom: 1.5rem; right: 1.5rem;
+  bottom: 1.5rem;
+  right: 1.5rem;
   background: var(--text);
   color: var(--bg);
   padding: 0.8rem 1.4rem;
@@ -142,16 +216,21 @@ body {
   font-size: 0.88rem;
   font-weight: 500;
   z-index: 900;
-  transform: translateY(100px);
+  transform: translateY(100px);  /* Oculto fuera de la pantalla por defecto */
   opacity: 0;
   transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   max-width: 320px;
 }
-.toast.show { transform: translateY(0); opacity: 1; }
-.toast.error { background: var(--accent); color: #fff; }
-.toast.success { background: #2d7a2d; color: #fff; }
+.toast.show    { transform: translateY(0); opacity: 1; }  /* Visible */
+.toast.error   { background: var(--accent); color: #fff; } /* Rojo para errores */
+.toast.success { background: #2d7a2d; color: #fff; }       /* Verde para éxito */
 
-/* --- SIDEBAR --- */
+
+/* =============================================
+   6. SIDEBAR DE NAVEGACIÓN
+   Panel lateral fijo con los enlaces de sección.
+   En móvil se transforma en drawer deslizable.
+   ============================================= */
 .sidebar {
   width: var(--sidebar-w);
   background: var(--surface);
@@ -159,13 +238,15 @@ body {
   display: flex;
   flex-direction: column;
   position: fixed;
-  top: 0; left: 0;
+  top: 0;
+  left: 0;
   height: 100vh;
   z-index: 100;
   transition: transform 0.3s ease, box-shadow 0.3s;
-  overflow-y: auto;
+  overflow-y: auto;  /* Scroll si el menú es más largo que la pantalla */
 }
 
+/* Cabecera del sidebar con logo y nombre de la app */
 .sidebar-brand {
   display: flex;
   align-items: center;
@@ -185,6 +266,7 @@ body {
   letter-spacing: -0.02em;
 }
 
+/* Contenedor de los ítems de navegación */
 .sidebar-nav {
   flex: 1;
   padding: 1rem 0.75rem;
@@ -193,6 +275,7 @@ body {
   gap: 0.2rem;
 }
 
+/* Etiqueta de grupo del nav ("Explorar") */
 .nav-label {
   font-size: 0.7rem;
   font-weight: 600;
@@ -202,6 +285,7 @@ body {
   padding: 0.5rem 0.5rem 0.25rem;
 }
 
+/* Botón de navegación individual */
 .nav-item {
   display: flex;
   align-items: center;
@@ -219,19 +303,12 @@ body {
   transition: var(--transition);
   width: 100%;
 }
-
-.nav-item:hover {
-  background: var(--bg2);
-  color: var(--text);
-}
-
-.nav-item.active {
-  background: var(--accent);
-  color: #fff;
-}
+.nav-item:hover  { background: var(--bg2); color: var(--text); }
+.nav-item.active { background: var(--accent); color: #fff; } /* Sección activa */
 
 .nav-icon { font-size: 1rem; flex-shrink: 0; }
 
+/* Pie del sidebar con botones de configuración */
 .sidebar-footer {
   padding: 1rem 0.75rem;
   border-top: 1px solid var(--border);
@@ -240,6 +317,7 @@ body {
   gap: 0.5rem;
 }
 
+/* Botones de "Cambiar API Key" y "Modo Oscuro" */
 .btn-apikey, .btn-theme {
   padding: 0.6rem 0.75rem;
   border-radius: 6px;
@@ -259,9 +337,14 @@ body {
   color: var(--text);
 }
 
-/* --- MAIN WRAPPER --- */
+
+/* =============================================
+   7. ÁREA DE CONTENIDO PRINCIPAL
+   El wrapper empuja su contenido a la derecha
+   del sidebar usando margin-left.
+   ============================================= */
 .main-wrapper {
-  margin-left: var(--sidebar-w);
+  margin-left: var(--sidebar-w); /* Espacio reservado para el sidebar */
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -269,9 +352,10 @@ body {
   transition: margin-left 0.3s;
 }
 
-/* --- TOPBAR --- */
+/* Barra superior pegajosa con título de sección y estado de API */
 .topbar {
-  position: sticky; top: 0;
+  position: sticky;
+  top: 0;
   height: var(--topbar-h);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -282,6 +366,7 @@ body {
   z-index: 50;
 }
 
+/* Botón hamburguesa — solo visible en móvil (display:block via media query) */
 .hamburger {
   display: none;
   background: none;
@@ -297,22 +382,17 @@ body {
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--text);
-  flex: 1;
+  flex: 1; /* Ocupa el espacio disponible */
 }
 
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
+/* Indicador de estado de conexión con la API */
 .api-status {
   font-size: 0.8rem;
   font-weight: 500;
-  color: #2d7a2d;
+  color: #2d7a2d; /* Verde "conectado" */
 }
 
-/* --- CONTENT --- */
+/* Área de contenido principal con padding y ancho máximo */
 .content {
   flex: 1;
   padding: 2rem;
@@ -320,18 +400,25 @@ body {
   width: 100%;
 }
 
-/* --- SECTIONS --- */
+
+/* =============================================
+   8. SECCIONES Y ENCABEZADOS
+   Cada sección del menú es un elemento .section.
+   Solo la que tiene la clase 'active' es visible.
+   ============================================= */
+
+/* Por defecto todas las secciones están ocultas */
 .section { display: none; animation: fadeIn 0.35s ease; }
+/* JS agrega 'active' a la sección seleccionada */
 .section.active { display: block; }
 
+/* Animación de entrada de cada sección al activarse */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.section-header {
-  margin-bottom: 1.75rem;
-}
+.section-header { margin-bottom: 1.75rem; }
 
 .section-header h1 {
   font-family: var(--font-serif);
@@ -350,6 +437,7 @@ body {
   font-size: 0.92rem;
 }
 
+/* Badge pequeño que acompaña los títulos (ej: "NYT") */
 .badge {
   font-family: var(--font-sans);
   font-size: 0.65rem;
@@ -363,7 +451,12 @@ body {
   vertical-align: middle;
 }
 
-/* --- CONTROLS BAR --- */
+
+/* =============================================
+    9. CONTROLES (SELECTS, INPUTS, BOTONES)
+   ============================================= */
+
+/* Barra de controles horizontal para filtros y acciones */
 .controls-bar {
   display: flex;
   gap: 0.75rem;
@@ -372,6 +465,7 @@ body {
   margin-bottom: 1.75rem;
 }
 
+/* Select personalizado con flecha SVG incrustada como background */
 .select-styled {
   padding: 0.7rem 1rem;
   border: 1.5px solid var(--border);
@@ -384,7 +478,9 @@ body {
   flex: 1;
   min-width: 200px;
   max-width: 350px;
+  /* Quita la flecha nativa del navegador */
   appearance: none;
+  /* Flecha personalizada como SVG en base64 */
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239a8f7f' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.9rem center;
@@ -396,6 +492,7 @@ body {
   border-color: var(--accent);
 }
 
+/* Input de tipo fecha */
 .input-date {
   padding: 0.7rem 1rem;
   border: 1.5px solid var(--border);
@@ -411,7 +508,7 @@ body {
   border-color: var(--accent);
 }
 
-/* --- BUTTONS --- */
+/* Botón principal rojo — acción primaria de cada sección */
 .btn-primary {
   padding: 0.72rem 1.4rem;
   background: var(--accent);
@@ -427,44 +524,12 @@ body {
 }
 .btn-primary:hover {
   background: var(--accent2);
-  transform: translateY(-1px);
+  transform: translateY(-1px);               /* Leve elevación al hover */
   box-shadow: 0 4px 12px rgba(196,28,28,0.25);
 }
-.btn-primary:active { transform: translateY(0); }
+.btn-primary:active { transform: translateY(0); }  /* Regresa al soltar */
 
-.btn-large { padding: 0.9rem 2rem; font-size: 1rem; }
-
-/* --- SEARCH TABS --- */
-.search-tabs {
-  display: flex;
-  gap: 0.4rem;
-  margin-bottom: 1.25rem;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 0;
-}
-
-.tab {
-  padding: 0.6rem 1.2rem;
-  border: none;
-  background: none;
-  color: var(--text2);
-  font-family: var(--font-sans);
-  font-size: 0.88rem;
-  font-weight: 500;
-  cursor: pointer;
-  border-bottom: 2.5px solid transparent;
-  margin-bottom: -1px;
-  transition: var(--transition);
-}
-.tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
-.tab:hover:not(.active) { color: var(--text); }
-
-.tab-content { display: none; }
-.tab-content.active { display: block; }
-
+/* Grupo de input + botón en fila para las búsquedas */
 .search-input-group {
   display: flex;
   gap: 0.75rem;
@@ -491,7 +556,12 @@ body {
 }
 .search-input-group input::placeholder { color: var(--text3); }
 
-/* --- GRID RESULTS --- */
+
+/* =============================================
+   10. GRILLA DE TARJETAS
+   CSS Grid responsivo que ajusta automáticamente
+   el número de columnas según el ancho disponible.
+   ============================================= */
 .grid-results {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -499,7 +569,12 @@ body {
   margin-top: 0.5rem;
 }
 
-/* --- BOOK CARD --- */
+
+/* =============================================
+   11. TARJETA DE LIBRO (book-card)
+   Componente reutilizado en Best Sellers,
+   Por Fecha y Resumen General.
+   ============================================= */
 .book-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -511,15 +586,17 @@ body {
   display: flex;
   flex-direction: column;
 }
+/* Elevación al pasar el cursor */
 .book-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
   border-color: var(--accent);
 }
 
+/* Contenedor de la portada con aspect ratio fijo */
 .book-cover-wrap {
   position: relative;
-  aspect-ratio: 2/3;
+  aspect-ratio: 2/3;   /* Proporción estándar de portadas de libro */
   overflow: hidden;
   background: var(--bg2);
 }
@@ -531,23 +608,31 @@ body {
   display: block;
   transition: transform 0.4s ease;
 }
+/* Leve zoom en la portada al hacer hover en la tarjeta */
 .book-card:hover .book-cover { transform: scale(1.04); }
 
+/* Badge circular con el número de posición en la lista */
 .book-rank {
   position: absolute;
-  top: 0.5rem; left: 0.5rem;
+  top: 0.5rem;
+  left: 0.5rem;
   background: var(--accent);
   color: white;
   font-size: 0.7rem;
   font-weight: 700;
-  width: 24px; height: 24px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+/* Badge con número de semanas en la lista — esquina inferior derecha */
 .book-weeks-badge {
   position: absolute;
-  bottom: 0.5rem; right: 0.5rem;
+  bottom: 0.5rem;
+  right: 0.5rem;
   background: rgba(0,0,0,0.7);
   color: #fff;
   font-size: 0.65rem;
@@ -557,6 +642,7 @@ body {
   backdrop-filter: blur(4px);
 }
 
+/* Sección de texto bajo la portada */
 .book-info {
   padding: 0.9rem;
   flex: 1;
@@ -565,6 +651,7 @@ body {
   gap: 0.25rem;
 }
 
+/* Título del libro — recortado a 2 líneas si es muy largo */
 .book-title {
   font-family: var(--font-serif);
   font-size: 0.92rem;
@@ -583,6 +670,7 @@ body {
   font-weight: 500;
 }
 
+/* Descripción recortada a 3 líneas */
 .book-desc {
   font-size: 0.76rem;
   color: var(--text3);
@@ -594,6 +682,7 @@ body {
   overflow: hidden;
 }
 
+/* Enlace de compra al pie de la tarjeta */
 .book-buy-link {
   display: inline-block;
   margin-top: 0.6rem;
@@ -604,15 +693,18 @@ body {
 }
 .book-buy-link:hover { text-decoration: underline; }
 
-/* --- OVERVIEW CONTAINER --- */
-.overview-container {
-  margin-top: 1.5rem;
-}
 
-.overview-list-section {
-  margin-bottom: 2.5rem;
-}
+/* =============================================
+   12. SECCIÓN RESUMEN GENERAL (overview)
+   Muestra múltiples listas en secciones verticales,
+   cada una con scroll horizontal de libros.
+   ============================================= */
+.overview-container { margin-top: 1.5rem; }
 
+/* Bloque de una lista individual dentro del overview */
+.overview-list-section { margin-bottom: 2.5rem; }
+
+/* Título de cada sub-lista con subrayado rojo */
 .overview-list-title {
   font-family: var(--font-serif);
   font-size: 1.3rem;
@@ -624,6 +716,7 @@ body {
   display: inline-block;
 }
 
+/* Fila de libros con scroll horizontal — se desplaza sin romper el layout */
 .overview-books-row {
   display: flex;
   gap: 1rem;
@@ -633,15 +726,22 @@ body {
   scrollbar-color: var(--border) transparent;
 }
 
+/* Tarjetas más pequeñas y fijas dentro del overview */
 .overview-books-row .book-card {
   min-width: 150px;
   max-width: 150px;
   flex-shrink: 0;
 }
 
-/* --- RESEÑAS --- */
+
+/* =============================================
+   13. SECCIÓN DE BÚSQUEDA (resena-card)
+   Layout horizontal: portada + información.
+   Usado en "Buscar por Título" y "Buscar por Autor".
+   ============================================= */
 .resenas-container { margin-top: 0.5rem; }
 
+/* Tarjeta horizontal con grid de 2 columnas */
 .resena-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -650,12 +750,16 @@ body {
   margin-bottom: 1rem;
   transition: var(--transition);
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr; /* Imagen fija + texto flexible */
   gap: 1.25rem;
   align-items: start;
 }
-.resena-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+.resena-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
 
+/* Miniatura de portada en layout horizontal */
 .resena-thumb {
   width: 80px;
   aspect-ratio: 2/3;
@@ -687,6 +791,7 @@ body {
   margin-bottom: 0.75rem;
 }
 
+/* Metadatos de la búsqueda: lista, posición, semanas */
 .resena-meta {
   display: flex;
   gap: 1rem;
@@ -695,6 +800,7 @@ body {
   flex-wrap: wrap;
 }
 
+/* Botón de enlace externo (comprar, ver en Open Library, etc.) */
 .resena-link {
   display: inline-block;
   margin-top: 0.5rem;
@@ -712,231 +818,97 @@ body {
   color: white;
 }
 
-/* --- LISTAS CONTAINER --- */
-.listas-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
 
-.lista-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 1.1rem;
-  transition: var(--transition);
-  cursor: pointer;
-}
-.lista-card:hover {
-  border-color: var(--accent);
-  box-shadow: var(--shadow);
-  transform: translateY(-2px);
-}
+/* =============================================
+   14. ESTADOS DE UI
+   Tres estados posibles cuando se muestra
+   contenido en las secciones de resultados:
+   - Cargando (spinner animado)
+   - Vacío (sin resultados)
+   - Error (petición fallida)
+   ============================================= */
 
-.lista-name {
-  font-family: var(--font-serif);
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 0.35rem;
-}
-
-.lista-freq {
-  font-size: 0.78rem;
-  color: var(--text3);
-  margin-bottom: 0.5rem;
-}
-
-.lista-tag {
-  font-size: 0.7rem;
-  font-weight: 600;
-  background: var(--bg2);
-  color: var(--text2);
-  padding: 0.2em 0.6em;
-  border-radius: 4px;
-  display: inline-block;
-}
-.lista-tag.weekly { background: rgba(196,28,28,0.1); color: var(--accent); }
-
-/* --- COMPARAR --- */
-.comparar-inputs {
-  display: flex;
-  gap: 1.25rem;
-  align-items: center;
-  margin-bottom: 1.25rem;
-  flex-wrap: wrap;
-}
-
-.comparar-col {
-  flex: 1;
-  min-width: 200px;
-}
-
-.comparar-col label {
-  display: block;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text2);
-  margin-bottom: 0.4rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.comparar-col input {
-  width: 100%;
-  padding: 0.78rem 1rem;
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-family: var(--font-sans);
-  font-size: 0.92rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.comparar-col input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(196,28,28,0.1);
-}
-
-.comparar-vs {
-  font-family: var(--font-serif);
-  font-size: 1.4rem;
-  font-weight: 900;
-  color: var(--accent);
-  align-self: flex-end;
-  padding-bottom: 0.78rem;
-}
-
-.comparar-btn-wrap {
-  margin-bottom: 1.75rem;
-}
-
-.comparar-result {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-}
-
-.comparar-book {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.comparar-book-header {
-  background: var(--bg2);
-  padding: 0.6rem 1rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text2);
-}
-
-.comparar-book-cover {
-  width: 120px;
-  aspect-ratio: 2/3;
-  object-fit: cover;
-  border-radius: 6px;
-  background: var(--bg2);
-}
-
-.comparar-book-body {
-  padding: 1.25rem;
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-}
-
-.comparar-book-details { flex: 1; }
-
-.comparar-book-title {
-  font-family: var(--font-serif);
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 0.25rem;
-}
-
-.comparar-book-author {
-  font-size: 0.82rem;
-  color: var(--text2);
-  margin-bottom: 0.75rem;
-}
-
-.comparar-stat {
-  font-size: 0.8rem;
-  color: var(--text2);
-  margin-bottom: 0.3rem;
-  display: flex;
-  justify-content: space-between;
-  border-bottom: 1px dashed var(--border);
-  padding-bottom: 0.25rem;
-}
-.comparar-stat span:last-child {
-  font-weight: 600;
-  color: var(--text);
-}
-
-/* --- EMPTY / ERROR / LOADING STATES --- */
+/* Contenedor central para estados vacío y error */
 .state-box {
   text-align: center;
   padding: 3rem 1rem;
   color: var(--text3);
 }
-.state-box .state-icon { font-size: 3rem; margin-bottom: 1rem; display: block; }
+.state-box .state-icon  { font-size: 3rem; margin-bottom: 1rem; display: block; }
 .state-box .state-title { font-family: var(--font-serif); font-size: 1.2rem; color: var(--text2); margin-bottom: 0.5rem; }
-.state-box .state-msg { font-size: 0.88rem; line-height: 1.5; }
-.state-box.error .state-icon { filter: grayscale(0); }
+.state-box .state-msg   { font-size: 0.88rem; line-height: 1.5; }
 
+/* Spinner de carga circular animado */
 .spinner {
-  width: 36px; height: 36px;
+  width: 36px;
+  height: 36px;
   border: 3px solid var(--border);
-  border-top-color: var(--accent);
+  border-top-color: var(--accent); /* El segmento rojo que gira */
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 2rem auto;
 }
+
+/* Animación de rotación continua del spinner */
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* --- RESPONSIVE --- */
+
+/* =============================================
+    15. RESPONSIVE — TABLET Y MÓVIL
+    Breakpoints:
+      768px → tablet/móvil: sidebar pasa a drawer
+      480px → móvil pequeño: ajustes de grilla
+   ============================================= */
+
+/* Tablet y móvil (≤768px) */
 @media (max-width: 768px) {
+  /* Sidebar se convierte en drawer deslizable desde la izquierda */
   .sidebar {
-    transform: translateX(-100%);
+    transform: translateX(-100%); /* Oculto fuera de pantalla */
     box-shadow: none;
   }
+  /* Clase 'open' agregada por JS al tocar el botón hamburguesa */
   .sidebar.open {
-    transform: translateX(0);
+    transform: translateX(0);     /* Desliza hacia adentro */
     box-shadow: var(--shadow-lg);
   }
+
+  /* El contenido ocupa todo el ancho cuando el sidebar está cerrado */
   .main-wrapper { margin-left: 0; }
+
+  /* Mostrar el botón hamburguesa */
   .hamburger { display: block; }
+
+  /* Reducir padding en pantallas pequeñas */
   .content { padding: 1.25rem 1rem; }
+
+  /* Títulos más pequeños en móvil */
   .section-header h1 { font-size: 1.5rem; }
+
+  /* Tarjetas de libro más pequeñas */
   .grid-results { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-  .comparar-result { grid-template-columns: 1fr; }
-  .comparar-vs { align-self: center; padding-bottom: 0; }
+
+  /* Tarjeta de búsqueda: layout de una columna en móvil */
   .resena-card { grid-template-columns: 1fr; }
   .resena-thumb { width: 100px; }
-  .listas-container { grid-template-columns: 1fr 1fr; }
 }
 
+/* Móvil pequeño (≤480px) */
 @media (max-width: 480px) {
+  /* Forzar exactamente 2 columnas de tarjetas */
   .grid-results { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
-  .listas-container { grid-template-columns: 1fr; }
+
+  /* Controles en columna vertical */
   .controls-bar { flex-direction: column; align-items: stretch; }
   .select-styled { max-width: 100%; }
 }
 
-/* Overlay para móvil cuando sidebar abierto */
+/* Overlay oscuro detrás del sidebar abierto en móvil */
 .sidebar-overlay {
   display: none;
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.5);
-  z-index: 99;
+  z-index: 99; /* Por debajo del sidebar (z-index: 100) pero encima del contenido */
 }
 .sidebar-overlay.active { display: block; }

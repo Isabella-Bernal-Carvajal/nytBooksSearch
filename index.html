@@ -1,239 +1,341 @@
 <!DOCTYPE html>
 <html lang="es">
+<!--
+  ================================================================
+  NYT BOOKS EXPLORER — index.html
+  Ejercicio: Consumo de APIs — NYT Books API
+  Aprendiz: Isabella Bernal Carvajal
+
+  ESTRUCTURA DE ESTE ARCHIVO:
+  ──────────────────────────────
+  1. <head>      → Meta tags, fuentes y hoja de estilos
+  2. #apiModal   → Modal de configuración de API Key
+  3. #toast      → Contenedor de notificaciones temporales
+  4. .sidebar    → Panel de navegación lateral
+  5. .main-wrapper
+    ├── .topbar → Barra superior con título y estado
+    └── .content → Secciones de contenido:
+        ├── sec-bestsellers  (Endpoint 1)
+        ├── sec-overview     (Endpoint 3)
+        ├── sec-resenas      (Endpoint 4 — buscar por título)
+        ├── sec-autor        (Endpoint 5 — buscar por autor)
+        └── sec-historial    (Endpoint 2)
+
+  NOTA: No hay lógica JavaScript en este archivo.
+  Todo el comportamiento está en app.js.
+  ================================================================
+-->
 <head>
   <meta charset="UTF-8">
+  <!-- Viewport responsivo: escala correctamente en móviles -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NYT Books Explorer</title>
+
+  <!-- Precarga de conexión a Google Fonts para mejor rendimiento -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!--
+    Fuentes tipográficas:
+    - Playfair Display: serif elegante para títulos (estilo editorial NYT)
+    - DM Sans: sans-serif moderno y legible para cuerpo de texto y UI
+  -->
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Hoja de estilos principal -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- API KEY MODAL -->
+  <!-- ============================================================
+    MODAL DE API KEY
+    Se muestra si el usuario no tiene una clave configurada.
+    La clase 'hidden' la agrega app.js al cargar si ya existe clave.
+    Funciones relacionadas en app.js: guardarApiKey(), cambiarApiKey()
+    ============================================================ -->
   <div id="apiModal" class="modal-overlay">
     <div class="modal-box">
       <div class="modal-logo">📚</div>
       <h2>NYT Books Explorer</h2>
       <p>Ingresa tu API Key del New York Times para comenzar a explorar.</p>
-      <p class="modal-hint">Obtén tu clave en <a href="https://developer.nytimes.com" target="_blank">developer.nytimes.com</a></p>
-      <input type="text" id="apiKeyInput" placeholder="Pega tu API Key aquí..." autocomplete="off">
-      <button onclick="guardarApiKey()" class="btn-primary">Comenzar exploración</button>
-      <p class="modal-note">Tu clave se guarda solo en tu navegador (localStorage). Nunca se envía a nuestros servidores.</p>
+      <p class="modal-hint">
+        Obtén tu clave en
+        <a href="https://developer.nytimes.com" target="_blank" rel="noopener">
+          developer.nytimes.com
+        </a>
+      </p>
+      <!-- Campo de texto para pegar la API Key -->
+      <input
+        type="text"
+        id="apiKeyInput"
+        placeholder="Pega tu API Key aquí..."
+        autocomplete="off"
+      >
+      <!-- Al hacer clic llama a guardarApiKey() en app.js -->
+      <button onclick="guardarApiKey()" class="btn-primary">
+        Comenzar exploración
+      </button>
+      <p class="modal-note">
+        Tu clave se guarda solo en tu navegador (localStorage).
+        Nunca se envía a terceros.
+      </p>
     </div>
   </div>
 
-  <!-- TOAST NOTIFICATION -->
+  <!-- ============================================================
+    NOTIFICACIONES TOAST
+    Contenedor vacío posicionado en la esquina inferior derecha.
+    app.js inyecta el texto y agrega/quita la clase 'show'.
+    Función relacionada: mostrarToast()
+    ============================================================ -->
   <div id="toast" class="toast"></div>
 
-  <!-- SIDEBAR NAV -->
+  <!-- ============================================================
+    SIDEBAR DE NAVEGACIÓN
+    Panel lateral fijo con los botones de cada sección.
+    En móvil se convierte en drawer: app.js agrega/quita 'open'.
+    Función relacionada: mostrarSeccion(), toggleSidebar()
+    ============================================================ -->
   <aside class="sidebar" id="sidebar">
+
+    <!-- Cabecera del sidebar -->
     <div class="sidebar-brand">
       <span class="brand-icon">📚</span>
       <span class="brand-text">NYT Books</span>
     </div>
 
+    <!-- Ítems de navegación -->
     <nav class="sidebar-nav">
       <p class="nav-label">Explorar</p>
-      <button class="nav-item active" data-section="bestsellers" onclick="mostrarSeccion('bestsellers', this)">
+
+      <!-- Cada botón llama a mostrarSeccion() con su ID de sección y referencia a sí mismo -->
+
+      <!-- Sección 1: Best Sellers actuales (Endpoint 1) -->
+      <button class="nav-item active" data-section="bestsellers"
+              onclick="mostrarSeccion('bestsellers', this)">
         <span class="nav-icon">🏆</span> Best Sellers
       </button>
-      <button class="nav-item" data-section="overview" onclick="mostrarSeccion('overview', this)">
+
+      <!-- Sección 2: Resumen general semanal (Endpoint 3) -->
+      <button class="nav-item" data-section="overview"
+              onclick="mostrarSeccion('overview', this)">
         <span class="nav-icon">📊</span> Resumen General
       </button>
-      <button class="nav-item" data-section="buscar" onclick="mostrarSeccion('buscar', this)">
-        <span class="nav-icon">🔍</span> Buscar Libros
+
+      <!-- Sección 3: Buscar por título en Best Sellers (Endpoint 4) -->
+      <button class="nav-item" data-section="resenas"
+              onclick="mostrarSeccion('resenas', this)">
+        <span class="nav-icon">🔎</span> Buscar por Título
       </button>
-      <button class="nav-item" data-section="resenas" onclick="mostrarSeccion('resenas', this)">
-        <span class="nav-icon">✍️</span> Reseñas
+
+      <!-- Sección 4: Buscar por autor en Best Sellers (Endpoint 5) -->
+      <button class="nav-item" data-section="autor"
+              onclick="mostrarSeccion('autor', this)">
+        <span class="nav-icon">✍️</span> Buscar por Autor
       </button>
-      <button class="nav-item" data-section="historial" onclick="mostrarSeccion('historial', this)">
+
+      <!-- Sección 5: Best Sellers por fecha histórica (Endpoint 2) -->
+      <button class="nav-item" data-section="historial"
+              onclick="mostrarSeccion('historial', this)">
         <span class="nav-icon">📅</span> Por Fecha
       </button>
-      <button class="nav-item" data-section="listas" onclick="mostrarSeccion('listas', this)">
-        <span class="nav-icon">📋</span> Todas las Listas
-      </button>
-      <button class="nav-item" data-section="comparar" onclick="mostrarSeccion('comparar', this)">
-        <span class="nav-icon">⚖️</span> Comparar Libros
-      </button>
+
     </nav>
 
+    <!-- Pie del sidebar con controles de configuración -->
     <div class="sidebar-footer">
-      <button class="btn-apikey" onclick="cambiarApiKey()">🔑 Cambiar API Key</button>
-      <button class="btn-theme" onclick="toggleTheme()" id="themeBtn">🌙 Modo Oscuro</button>
+      <!-- Abre el modal para cambiar la API Key -->
+      <button class="btn-apikey" onclick="cambiarApiKey()">
+        🔑 Cambiar API Key
+      </button>
+      <!-- Alterna entre tema claro y oscuro (persiste en localStorage) -->
+      <button class="btn-theme" onclick="toggleTheme()" id="themeBtn">
+        🌙 Modo Oscuro
+      </button>
     </div>
+
   </aside>
 
-  <!-- MAIN CONTENT -->
+  <!-- ============================================================
+    ÁREA DE CONTENIDO PRINCIPAL
+    Se desplaza a la derecha del sidebar usando margin-left.
+    En móvil, margin-left se elimina y el sidebar es un drawer.
+    ============================================================ -->
   <div class="main-wrapper">
+
+    <!-- Barra superior pegajosa con título de sección y estado de API -->
     <header class="topbar">
+      <!-- Botón hamburguesa: solo visible en móvil (CSS lo oculta en desktop) -->
       <button class="hamburger" onclick="toggleSidebar()" id="hamburger">☰</button>
+      <!-- Título de la sección activa — actualizado por mostrarSeccion() -->
       <div class="topbar-title" id="topbarTitle">Best Sellers</div>
       <div class="topbar-right">
+        <!-- Indicador visual de que la API Key está configurada -->
         <span class="api-status" id="apiStatus">● Conectado</span>
       </div>
     </header>
 
+    <!-- Contenido de cada sección -->
     <main class="content">
 
-      <!-- SECCIÓN: BEST SELLERS -->
+      <!-- ===========================================================
+        SECCIÓN 1 — BEST SELLERS POR CATEGORÍA
+        Endpoint: GET /lists/current/{list}.json
+        Función JS: librosCategoria()
+
+        El usuario selecciona una categoría del <select> y hace clic
+        en "Ver lista". app.js construye la URL con el valor del select
+        y renderiza los libros como tarjetas .book-card.
+
+        Los <option> del select son generados dinámicamente por
+        poblarSelectores() en app.js usando el array CATEGORIAS_ACTIVAS.
+        =========================================================== -->
       <section id="sec-bestsellers" class="section active">
         <div class="section-header">
           <h1>Best Sellers <span class="badge">NYT</span></h1>
           <p>Los libros más vendidos según las listas del New York Times</p>
         </div>
+
+        <!-- Controles: selector de categoría + botón de consulta -->
         <div class="controls-bar">
-          <select id="categoriaSelect" class="select-styled">
-            <option value="combined-print-and-e-book-fiction" selected>Combined Print & E-book Fiction</option>
-            <option value="hardcover-fiction">Hardcover Fiction</option>
-            <option value="hardcover-nonfiction">Hardcover Nonfiction</option>
-            <option value="paperback-nonfiction">Paperback Nonfiction</option>
-            <option value="young-adult-hardcover">Young Adult Hardcover</option>
-            <option value="business-books">Business Books</option>
-            <option value="science">Science</option>
-            <option value="travel">Travel</option>
-            <option value="graphic-books-and-manga">Graphic Books & Manga</option>
-            <option value="humor">Humor</option>
-          </select>
+          <!-- Opciones pobladas dinámicamente por poblarSelectores() en app.js -->
+          <select id="categoriaSelect" class="select-styled"></select>
           <button class="btn-primary" onclick="librosCategoria()">
-            <span>Ver lista</span>
+            Ver lista
           </button>
         </div>
+
+        <!-- Contenedor de resultados: app.js inyecta las tarjetas aquí -->
         <div id="resultado-bestsellers" class="grid-results"></div>
       </section>
 
-      <!-- SECCIÓN: OVERVIEW -->
+
+      <!-- ===========================================================
+        SECCIÓN 2 — RESUMEN GENERAL SEMANAL
+        Endpoint: GET /lists/overview.json
+        Función JS: overview()
+
+        Muestra el top 5 de todas las listas disponibles esta semana El botón dispara la petición
+        manualmente para ahorrar peticiones de API al cargar.
+        =========================================================== -->
       <section id="sec-overview" class="section">
         <div class="section-header">
           <h1>Resumen General <span class="badge">Semana actual</span></h1>
-          <p>Vista panorámica de todas las listas de best sellers esta semana</p>
+          <p>Vista panorámica de todas las listas de Best Sellers esta semana</p>
         </div>
-        <button class="btn-primary" onclick="overview()">Cargar resumen semanal</button>
+
+        <!-- Carga manual para no gastar peticiones de API innecesariamente -->
+        <button class="btn-primary" onclick="overview()">
+          Cargar resumen semanal
+        </button>
+
+        <!-- Contenedor donde se inyectan las filas por lista -->
         <div id="resultado-overview" class="overview-container"></div>
       </section>
 
-      <!-- SECCIÓN: BUSCAR -->
-      <section id="sec-buscar" class="section">
-        <div class="section-header">
-          <h1>Buscar Libros</h1>
-          <p>Busca cualquier libro por título o por autor en el catálogo NYT</p>
-        </div>
-        <div class="search-tabs">
-          <button class="tab active" onclick="activarTab('titulo', this)">Por Título</button>
-          <button class="tab" onclick="activarTab('autor', this)">Por Autor</button>
-        </div>
-        <div id="tab-titulo" class="tab-content active">
-          <div class="search-input-group">
-            <input id="buscarLibroInput" type="text" placeholder="Ej: Harry Potter, Dune, El Principito..." 
-                   onkeydown="if(event.key==='Enter') buscarLibro()">
-            <button class="btn-primary" onclick="buscarLibro()">Buscar</button>
-          </div>
-        </div>
-        <div id="tab-autor" class="tab-content">
-          <div class="search-input-group">
-            <input id="buscarAutorInput" type="text" placeholder="Ej: Gabriel García Márquez, Stephen King..."
-                   onkeydown="if(event.key==='Enter') buscarAutor()">
-            <button class="btn-primary" onclick="buscarAutor()">Buscar</button>
-          </div>
-        </div>
-        <div id="resultado-buscar" class="grid-results"></div>
-      </section>
 
-      <!-- SECCIÓN: RESEÑAS -->
+      <!-- ===========================================================
+        SECCIÓN 3 — BUSCAR POR TÍTULO EN BEST SELLERS
+        Endpoint: GET /lists/current/{list}.json ×10 en paralelo
+        Función JS: buscarEnBestSellers('titulo')
+
+        Consulta 10 categorías simultáneamente y filtra los libros
+        cuyo título contenga el texto ingresado.
+        =========================================================== -->
       <section id="sec-resenas" class="section">
         <div class="section-header">
-          <h1>Reseñas Literarias</h1>
-          <p>Busca reseñas del NYT por título de libro o por autor</p>
+          <h1>Buscar por Título <span class="badge">NYT</span></h1>
+          <p>Busca un título dentro de las listas actuales de Best Sellers del New York Times</p>
         </div>
-        <div class="search-tabs">
-          <button class="tab active" onclick="activarTabResena('rtitulo', this)">Por Título</button>
-          <button class="tab" onclick="activarTabResena('rautor', this)">Por Autor</button>
-          <button class="tab" onclick="activarTabResena('risbn', this)">Por ISBN</button>
+
+        <!-- Input de búsqueda: Enter también dispara la función -->
+        <div class="search-input-group">
+          <input
+            id="resenaTituloInput"
+            type="text"
+            placeholder="Ej: Harry Potter, Dune, Atomic Habits..."
+            onkeydown="if(event.key==='Enter') buscarEnBestSellers('titulo')"
+          >
+          <button class="btn-primary" onclick="buscarEnBestSellers('titulo')">
+            Buscar
+          </button>
         </div>
-        <div id="tab-rtitulo" class="tab-content active">
-          <div class="search-input-group">
-            <input id="resenaTituloInput" type="text" placeholder="Título del libro..."
-                   onkeydown="if(event.key==='Enter') buscarResena('titulo')">
-            <button class="btn-primary" onclick="buscarResena('titulo')">Buscar reseña</button>
-          </div>
-        </div>
-        <div id="tab-rautor" class="tab-content">
-          <div class="search-input-group">
-            <input id="resenaAutorInput" type="text" placeholder="Nombre del autor..."
-                   onkeydown="if(event.key==='Enter') buscarResena('autor')">
-            <button class="btn-primary" onclick="buscarResena('autor')">Buscar reseña</button>
-          </div>
-        </div>
-        <div id="tab-risbn" class="tab-content">
-          <div class="search-input-group">
-            <input id="resenaIsbnInput" type="text" placeholder="ISBN del libro (sin guiones)..."
-                   onkeydown="if(event.key==='Enter') buscarResena('isbn')">
-            <button class="btn-primary" onclick="buscarResena('isbn')">Buscar reseña</button>
-          </div>
-        </div>
+
+        <!-- Resultados: tarjetas .resena-card con layout horizontal -->
         <div id="resultado-resenas" class="resenas-container"></div>
       </section>
 
-      <!-- SECCIÓN: HISTORIAL POR FECHA -->
+
+      <!-- ===========================================================
+        SECCIÓN 4 — BUSCAR POR AUTOR EN BEST SELLERS
+        =========================================================== -->
+      <section id="sec-autor" class="section">
+        <div class="section-header">
+          <h1>Buscar por Autor <span class="badge">NYT</span></h1>
+          <p>Busca un autor dentro de las listas actuales de Best Sellers del New York Times</p>
+        </div>
+
+        <div class="search-input-group">
+          <input
+            id="autorInput"
+            type="text"
+            placeholder="Ej: Stephen King, Colleen Hoover, James Clear..."
+            onkeydown="if(event.key==='Enter') buscarEnBestSellers('autor')"
+          >
+          <button class="btn-primary" onclick="buscarEnBestSellers('autor')">
+            Buscar
+          </button>
+        </div>
+
+        <!-- Contenedor independiente del de búsqueda por título -->
+        <div id="resultado-autor" class="resenas-container"></div>
+      </section>
+
+
+      <!-- ===========================================================
+        SECCIÓN 5 — BEST SELLERS POR FECHA HISTÓRICA
+        =========================================================== -->
       <section id="sec-historial" class="section">
         <div class="section-header">
           <h1>Best Sellers por Fecha</h1>
-          <p>Consulta qué libros lideraban las listas en una fecha específica</p>
+          <p>Consulta qué libros lideraban las listas en una fecha específica del pasado</p>
         </div>
+
         <div class="controls-bar">
-          <select id="categoriaFechaSelect" class="select-styled">
-            <option value="combined-print-and-e-book-fiction" selected>Combined Print & E-book Fiction</option>
-            <option value="hardcover-fiction">Hardcover Fiction</option>
-            <option value="hardcover-nonfiction">Hardcover Nonfiction</option>
-            <option value="paperback-nonfiction">Paperback Nonfiction</option>
-            <option value="young-adult-hardcover">Young Adult Hardcover</option>
-            <option value="business-books">Business Books</option>
-          </select>
-          <input id="fechaInput" type="date" class="input-date" max="2025-12-31" min="2011-02-13">
-          <button class="btn-primary" onclick="librosPorFecha()">Consultar</button>
+          <!-- Selector de categoría — poblado por poblarSelectores() en app.js -->
+          <select id="categoriaFechaSelect" class="select-styled"></select>
+
+          <!--
+            Input de fecha:
+            - min: fecha más antigua disponible en la API NYT (2011-02-13)
+            - max: fin de 2025 (datos disponibles confirmados)
+          -->
+          <input
+            id="fechaInput"
+            type="date"
+            class="input-date"
+            max="2025-12-31"
+            min="2011-02-13"
+          >
+          <button class="btn-primary" onclick="librosPorFecha()">
+            Consultar
+          </button>
         </div>
+
+        <!-- Resultados con encabezado informativo de fecha y lista -->
         <div id="resultado-historial" class="grid-results"></div>
-      </section>
-
-      <!-- SECCIÓN: TODAS LAS LISTAS -->
-      <section id="sec-listas" class="section">
-        <div class="section-header">
-          <h1>Todas las Listas</h1>
-          <p>Explora todas las categorías disponibles en el NYT Books API</p>
-        </div>
-        <button class="btn-primary" onclick="cargarListas()">Ver todas las listas</button>
-        <div id="resultado-listas" class="listas-container"></div>
-      </section>
-
-      <!-- SECCIÓN: COMPARAR -->
-      <section id="sec-comparar" class="section">
-        <div class="section-header">
-          <h1>Comparar Libros ⚖️</h1>
-          <p>Compara dos libros lado a lado buscándolos por título</p>
-        </div>
-        <div class="comparar-inputs">
-          <div class="comparar-col">
-            <label>Libro A</label>
-            <input id="compararLibroA" type="text" placeholder="Ej: Dune"
-                   onkeydown="if(event.key==='Enter') compararLibros()">
-          </div>
-          <div class="comparar-vs">VS</div>
-          <div class="comparar-col">
-            <label>Libro B</label>
-            <input id="compararLibroB" type="text" placeholder="Ej: Foundation"
-                   onkeydown="if(event.key==='Enter') compararLibros()">
-          </div>
-        </div>
-        <div class="comparar-btn-wrap">
-          <button class="btn-primary btn-large" onclick="compararLibros()">Comparar</button>
-        </div>
-        <div id="resultado-comparar" class="comparar-result"></div>
       </section>
 
     </main>
   </div>
 
+  <!--
+    Script principal de la aplicación.
+    Se carga al final del body para garantizar que el DOM
+    está completamente disponible cuando se ejecuta.
+  -->
+  <!-- config.js carga la API Key desde un archivo local protegido por .gitignore -->
+  <!-- Si no existe, app.js pedirá la clave por pantalla -->
+  <script src="config.js" onerror="console.warn('config.js no encontrado — ingresa tu API Key manualmente.')"></script>
   <script src="app.js"></script>
 </body>
 </html>
