@@ -1,35 +1,35 @@
 /* =============================================
-    NYT BOOKS EXPLORER — style.css
-    Ejercicio: Consumo de APIs — NYT Books API
-    Aprendiz: Isabella Bernal Carvajal
-    =============================================
+   NYT BOOKS EXPLORER — style.css
+   Ejercicio: Consumo de APIs — NYT Books API
+   Aprendiz: Isabella Bernal Carvajal
+   =============================================
 
-    ESTRUCTURA DE ESTE ARCHIVO:
-    ─────────────────────────────
-    1.  Variables CSS y Reset
-    2.  Modo oscuro (body.dark)
-    3.  Layout base (body, html)
-    4.  Modal de API Key
-    5.  Notificaciones Toast
-    6.  Sidebar de navegación
-    7.  Área de contenido principal
-    8.  Secciones y encabezados
-    9.  Controles (selects, inputs, botones)
-    10. Grilla de tarjetas de libros
-    11. Tarjeta de libro (book-card)
-    12. Sección de Resumen General (overview)
-    13. Sección de Búsqueda (resena-card)
-    14. Estados de UI (cargando, vacío, error)
-    15. Animaciones
-    16. Responsive (tablet y móvil)
-    ============================================= */
+   ESTRUCTURA DE ESTE ARCHIVO:
+   ─────────────────────────────
+   1.  Variables CSS y Reset
+   2.  Modo oscuro (body.dark)
+   3.  Layout base (body, html)
+   4.  Modal de API Key
+   5.  Notificaciones Toast
+   6.  Sidebar de navegación
+   7.  Área de contenido principal
+   8.  Secciones y encabezados
+   9.  Controles (selects, inputs, botones)
+   10. Grilla de tarjetas de libros
+   11. Tarjeta de libro (book-card)
+   12. Sección de Resumen General (overview)
+   13. Sección de Búsqueda (resena-card)
+   14. Estados de UI (cargando, vacío, error)
+   15. Animaciones
+   16. Responsive (tablet y móvil)
+   ============================================= */
 
 
-  /* =============================================
-    1. VARIABLES CSS Y RESET
-    Variables globales que definen toda la paleta
-    de colores, tipografía y espaciados del diseño.
-    Cambiar una variable aquí afecta toda la app.
+/* =============================================
+   1. VARIABLES CSS Y RESET
+   Variables globales que definen toda la paleta
+   de colores, tipografía y espaciados del diseño.
+   Cambiar una variable aquí afecta toda la app.
    ============================================= */
 :root {
   /* Colores de fondo — del más claro al más oscuro */
@@ -453,7 +453,7 @@ body.dark {
 
 
 /* =============================================
-    9. CONTROLES (SELECTS, INPUTS, BOTONES)
+   9. CONTROLES (SELECTS, INPUTS, BOTONES)
    ============================================= */
 
 /* Barra de controles horizontal para filtros y acciones */
@@ -854,10 +854,10 @@ body.dark {
 
 
 /* =============================================
-    15. RESPONSIVE — TABLET Y MÓVIL
-    Breakpoints:
-      768px → tablet/móvil: sidebar pasa a drawer
-      480px → móvil pequeño: ajustes de grilla
+   15. RESPONSIVE — TABLET Y MÓVIL
+   Breakpoints:
+     768px → tablet/móvil: sidebar pasa a drawer
+     480px → móvil pequeño: ajustes de grilla
    ============================================= */
 
 /* Tablet y móvil (≤768px) */
@@ -912,3 +912,342 @@ body.dark {
   z-index: 99; /* Por debajo del sidebar (z-index: 100) pero encima del contenido */
 }
 .sidebar-overlay.active { display: block; }
+
+/* ═══════════════════════════════════════════════════════════
+   NUEVAS FUNCIONALIDADES — estilos agregados
+   ════════════════════════════════════════════════════════ */
+
+/* ── Modal de detalle de libro ──────────────────────────── */
+.modal-detalle-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  z-index: 500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.modal-detalle-overlay.activo { display: flex; }
+
+.modal-detalle-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 2rem;
+  position: relative;
+  animation: modalIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  scrollbar-width: thin;
+}
+
+.modal-cerrar {
+  position: absolute;
+  top: 1rem; right: 1rem;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text2);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: var(--transition);
+}
+.modal-cerrar:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.modal-libro-layout {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 1.75rem;
+  align-items: flex-start;
+}
+@media (max-width: 520px) {
+  .modal-libro-layout { grid-template-columns: 1fr; }
+}
+
+.modal-portada {
+  width: 100%;
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-rank {
+  margin-top: 0.75rem;
+  background: var(--accent);
+  color: #fff;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.3rem 0;
+  border-radius: 6px;
+}
+
+.modal-badge {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25em 0.6em;
+  border-radius: 4px;
+  text-align: center;
+}
+.modal-badge.nuevo  { background: rgba(29,158,117,0.15); color: #0f6e56; }
+.modal-badge.subio  { background: rgba(29,158,117,0.15); color: #0f6e56; }
+.modal-badge.bajo   { background: rgba(196,28,28,0.1);  color: var(--accent); }
+.modal-badge.igual  { background: var(--bg2); color: var(--text3); }
+
+.modal-meta-item {
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text2);
+  text-align: center;
+}
+
+.modal-titulo {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--text);
+  margin-bottom: 0.3rem;
+  line-height: 1.2;
+}
+
+.modal-autor { font-size: 0.95rem; color: var(--text2); margin-bottom: 0.3rem; }
+.modal-lista { font-size: 0.8rem; color: var(--text3); margin-bottom: 0.75rem; }
+
+.modal-desc {
+  font-size: 0.9rem;
+  color: var(--text2);
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.modal-datos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+.modal-dato {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 0.3rem;
+  color: var(--text2);
+}
+.modal-dato span:last-child { font-weight: 600; color: var(--text); }
+
+.modal-comprar-label { font-size: 0.82rem; font-weight: 600; color: var(--text2); margin-bottom: 0.5rem; }
+.modal-buy-links { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.modal-buy-btn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4em 1em;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  transition: var(--transition);
+}
+.modal-buy-btn:hover { background: var(--accent2); }
+
+/* ── Botón "Ver más detalles" en tarjetas ───────────────── */
+.book-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.btn-detalle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35em 0.85em;
+  border-radius: 5px;
+  border: 1.5px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.btn-detalle:hover { background: var(--accent); color: #fff; }
+
+/* ── Botón secundario ───────────────────────────────────── */
+.btn-secondary {
+  padding: 0.7rem 1.1rem;
+  background: var(--bg2);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Select de orden ────────────────────────────────────── */
+.select-orden { min-width: 180px; max-width: 220px; flex-shrink: 0; }
+
+/* ── Autocompletado ─────────────────────────────────────── */
+.autocomplete-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.78rem 1rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(196,28,28,0.1);
+}
+.search-input::placeholder { color: var(--text3); }
+
+.autocomplete-lista {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.autocomplete-lista.visible { display: block; }
+
+.autocomplete-lista li {
+  padding: 0.6rem 1rem;
+  font-size: 0.88rem;
+  color: var(--text);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.autocomplete-lista li:last-child { border-bottom: none; }
+.autocomplete-lista li:hover { background: var(--bg2); }
+.autocomplete-lista li mark {
+  background: rgba(196,28,28,0.15);
+  color: var(--accent);
+  font-weight: 700;
+  border-radius: 2px;
+}
+
+/* ── Sección Por Fecha — opciones ───────────────────────── */
+.fecha-opciones {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.fecha-opcion-bloque { display: flex; flex-direction: column; gap: 0.5rem; }
+.fecha-label { font-size: 0.8rem; font-weight: 600; color: var(--text2); }
+
+/* ── Autores más leídos ─────────────────────────────────── */
+.autores-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.autor-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+  transition: var(--transition);
+}
+.autor-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+
+.autor-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.autor-posicion {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.autor-nombre {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.2rem;
+}
+
+.autor-stats {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: var(--text3);
+}
+
+.autor-libros-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.autor-libro-mini {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  width: 72px;
+}
+.autor-libro-mini img {
+  width: 72px;
+  aspect-ratio: 2/3;
+  object-fit: cover;
+  border-radius: 5px;
+  box-shadow: var(--shadow);
+  transition: var(--transition);
+}
+.autor-libro-mini:hover img { transform: scale(1.06); box-shadow: var(--shadow-lg); }
+.autor-libro-mini span {
+  font-size: 0.65rem;
+  color: var(--text3);
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.3;
+}
