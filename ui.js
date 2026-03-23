@@ -141,10 +141,10 @@ function aplicarTemaGuardado() {
  * @param {string} tipo - 'error' (rojo) | 'success' (verde) | '' (neutro)
  */
 function mostrarToast(msg, tipo = '') {
-  const toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.className = `toast ${tipo} show`;
-  setTimeout(() => toast.classList.remove('show'), 3500);
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = `toast ${tipo} show`;
+    setTimeout(() => toast.classList.remove('show'), 3500);
 }
 
 
@@ -158,11 +158,11 @@ function mostrarToast(msg, tipo = '') {
  * se actualizan solos la próxima vez que cargue la página.
  */
 function poblarSelectores() {
-  ['categoriaSelect', 'categoriaFechaSelect'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.innerHTML = CATEGORIAS_ACTIVAS.map(cat =>
-      `<option value="${cat.value}" ${cat.value === DEFAULT_CATEGORY ? 'selected' : ''}>${cat.label}</option>`
-    ).join('');
-  });
+    ['categoriaSelect', 'categoriaFechaSelect'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = CATEGORIAS_ACTIVAS.map(cat =>
+        `<option value="${cat.value}" ${cat.value === DEFAULT_CATEGORY ? 'selected' : ''}>${cat.label}</option>`
+        ).join('');
+    });
 }

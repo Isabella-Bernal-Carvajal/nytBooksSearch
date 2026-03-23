@@ -695,9 +695,9 @@ body.dark {
 
 
 /* =============================================
-   12. SECCIÓN RESUMEN GENERAL (overview)
-   Muestra múltiples listas en secciones verticales,
-   cada una con scroll horizontal de libros.
+    12. SECCIÓN RESUMEN GENERAL (overview)
+    Muestra múltiples listas en secciones verticales,
+    cada una con scroll horizontal de libros.
    ============================================= */
 .overview-container { margin-top: 1.5rem; }
 
@@ -735,9 +735,9 @@ body.dark {
 
 
 /* =============================================
-   13. SECCIÓN DE BÚSQUEDA (resena-card)
-   Layout horizontal: portada + información.
-   Usado en "Buscar por Título" y "Buscar por Autor".
+    13. SECCIÓN DE BÚSQUEDA (resena-card)
+    Layout horizontal: portada + información.
+    Usado en "Buscar por Título" y "Buscar por Autor".
    ============================================= */
 .resenas-container { margin-top: 0.5rem; }
 
@@ -820,12 +820,12 @@ body.dark {
 
 
 /* =============================================
-   14. ESTADOS DE UI
-   Tres estados posibles cuando se muestra
-   contenido en las secciones de resultados:
-   - Cargando (spinner animado)
-   - Vacío (sin resultados)
-   - Error (petición fallida)
+    14. ESTADOS DE UI
+    Tres estados posibles cuando se muestra
+    contenido en las secciones de resultados:
+    - Cargando (spinner animado)
+    - Vacío (sin resultados)
+    - Error (petición fallida)
    ============================================= */
 
 /* Contenedor central para estados vacío y error */
@@ -854,10 +854,10 @@ body.dark {
 
 
 /* =============================================
-   15. RESPONSIVE — TABLET Y MÓVIL
-   Breakpoints:
-     768px → tablet/móvil: sidebar pasa a drawer
-     480px → móvil pequeño: ajustes de grilla
+    15. RESPONSIVE — TABLET Y MÓVIL
+    Breakpoints:
+      768px → tablet/móvil: sidebar pasa a drawer
+      480px → móvil pequeño: ajustes de grilla
    ============================================= */
 
 /* Tablet y móvil (≤768px) */
@@ -914,7 +914,7 @@ body.dark {
 .sidebar-overlay.active { display: block; }
 
 /* ═══════════════════════════════════════════════════════════
-   NUEVAS FUNCIONALIDADES — estilos agregados
+    NUEVAS FUNCIONALIDADES — estilos agregados
    ════════════════════════════════════════════════════════ */
 
 /* ── Modal de detalle de libro ──────────────────────────── */

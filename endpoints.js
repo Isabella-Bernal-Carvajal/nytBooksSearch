@@ -263,37 +263,37 @@ async function buscarEnBestSellers(tipo) {
 
     renderizarResultadosBusqueda(tipo, encontrados, query);
 
-  } catch (err) {
-    mostrarError(contenedor, err.message);
-  }
+    } catch (err) {
+        mostrarError(contenedor, err.message);
+    }
 }
 
 /** Re-renderiza los resultados de búsqueda con el nuevo orden */
 function aplicarOrdenBusqueda(tipo) {
-  const libros = tipo === 'titulo'
-    ? _ultimosLibrosBusquedaTitulo
-    : _ultimosLibrosBusquedaAutor;
+    const libros = tipo === 'titulo'
+        ? _ultimosLibrosBusquedaTitulo
+        : _ultimosLibrosBusquedaAutor;
 
-  if (libros.length === 0) return;
+    if (libros.length === 0) return;
 
-  const inputId = tipo === 'titulo' ? 'resenaTituloInput' : 'autorInput';
-  const query   = document.getElementById(inputId)?.value?.trim() || '';
-  renderizarResultadosBusqueda(tipo, libros, query);
+    const inputId = tipo === 'titulo' ? 'resenaTituloInput' : 'autorInput';
+    const query   = document.getElementById(inputId)?.value?.trim() || '';
+    renderizarResultadosBusqueda(tipo, libros, query);
 }
 
 function renderizarResultadosBusqueda(tipo, librosOriginal, query) {
-  const contenedorId = tipo === 'titulo' ? 'resultado-resenas' : 'resultado-autor';
-  const contenedor   = document.getElementById(contenedorId);
-  const ordenId      = tipo === 'titulo' ? 'ordenBusquedaTitulo' : 'ordenBusquedaAutor';
-  const criterio     = document.getElementById(ordenId)?.value || 'rank';
-  const ordenados    = ordenarLibros(librosOriginal, criterio);
+    const contenedorId = tipo === 'titulo' ? 'resultado-resenas' : 'resultado-autor';
+    const contenedor   = document.getElementById(contenedorId);
+    const ordenId      = tipo === 'titulo' ? 'ordenBusquedaTitulo' : 'ordenBusquedaAutor';
+    const criterio     = document.getElementById(ordenId)?.value || 'rank';
+    const ordenados    = ordenarLibros(librosOriginal, criterio);
 
-  const header = `
-    <div style="margin-bottom:1rem;padding:0.75rem 1rem;background:var(--surface);
-                border-radius:8px;border-left:3px solid var(--accent);font-size:0.88rem;color:var(--text2);">
-      🔎 <strong>${librosOriginal.length}</strong> resultado(s) para
-      "<strong>${query}</strong>" en las listas NYT actuales
-    </div>`;
+    const header = `
+        <div style="margin-bottom:1rem;padding:0.75rem 1rem;background:var(--surface);
+                    border-radius:8px;border-left:3px solid var(--accent);font-size:0.88rem;color:var(--text2);">
+        🔎 <strong>${librosOriginal.length}</strong> resultado(s) para
+        "<strong>${query}</strong>" en las listas NYT actuales
+        </div>`;
 
-  contenedor.innerHTML = header + ordenados.map(l => crearTarjetaBestSellerBusqueda(l)).join('');
+    contenedor.innerHTML = header + ordenados.map(l => crearTarjetaBestSellerBusqueda(l)).join('');
 }

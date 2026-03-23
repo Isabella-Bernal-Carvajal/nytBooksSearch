@@ -12,7 +12,7 @@
 <body>
 
   <!-- ═══════════════════════════════════════════
-       MODAL API KEY
+        MODAL API KEY
   ════════════════════════════════════════════ -->
   <div id="apiModal" class="modal-overlay">
     <div class="modal-box">
@@ -27,7 +27,7 @@
   </div>
 
   <!-- ═══════════════════════════════════════════
-       MODAL DETALLE DE LIBRO
+        MODAL DETALLE DE LIBRO
   ════════════════════════════════════════════ -->
   <div id="modalDetalle" class="modal-detalle-overlay" onclick="if(event.target===this)cerrarModal()">
     <div class="modal-detalle-box">
@@ -37,12 +37,12 @@
   </div>
 
   <!-- ═══════════════════════════════════════════
-       TOAST
+        TOAST
   ════════════════════════════════════════════ -->
   <div id="toast" class="toast"></div>
 
   <!-- ═══════════════════════════════════════════
-       SIDEBAR
+        SIDEBAR
   ════════════════════════════════════════════ -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
@@ -77,7 +77,7 @@
   </aside>
 
   <!-- ═══════════════════════════════════════════
-       CONTENIDO PRINCIPAL
+        CONTENIDO PRINCIPAL
   ════════════════════════════════════════════ -->
   <div class="main-wrapper">
     <header class="topbar">
@@ -128,11 +128,11 @@
         <div class="controls-bar">
           <div class="autocomplete-wrap">
             <input id="resenaTituloInput" type="text"
-                   class="search-input"
-                   placeholder="Ej: Harry Potter, Dune, Atomic Habits..."
-                   oninput="mostrarSugerencias('resenaTituloInput','sugerenciasTitulo','titulo')"
-                   onkeydown="if(event.key==='Enter') buscarEnBestSellers('titulo')"
-                   autocomplete="off">
+                    class="search-input"
+                    placeholder="Ej: Harry Potter, Dune, Atomic Habits..."
+                    oninput="mostrarSugerencias('resenaTituloInput','sugerenciasTitulo','titulo')"
+                    onkeydown="if(event.key==='Enter') buscarEnBestSellers('titulo')"
+                    autocomplete="off">
             <ul id="sugerenciasTitulo" class="autocomplete-lista"></ul>
           </div>
           <select id="ordenBusquedaTitulo" class="select-styled select-orden" onchange="aplicarOrdenBusqueda('titulo')">
@@ -157,11 +157,11 @@
         <div class="controls-bar">
           <div class="autocomplete-wrap">
             <input id="autorInput" type="text"
-                   class="search-input"
-                   placeholder="Ej: Stephen King, Colleen Hoover, James Clear..."
-                   oninput="mostrarSugerencias('autorInput','sugerenciasAutor','autor')"
-                   onkeydown="if(event.key==='Enter') buscarEnBestSellers('autor')"
-                   autocomplete="off">
+                    class="search-input"
+                    placeholder="Ej: Stephen King, Colleen Hoover, James Clear..."
+                    oninput="mostrarSugerencias('autorInput','sugerenciasAutor','autor')"
+                    onkeydown="if(event.key==='Enter') buscarEnBestSellers('autor')"
+                    autocomplete="off">
             <ul id="sugerenciasAutor" class="autocomplete-lista"></ul>
           </div>
           <select id="ordenBusquedaAutor" class="select-styled select-orden" onchange="aplicarOrdenBusqueda('autor')">
@@ -235,17 +235,17 @@
   <script src="config.js" onerror="console.warn('config.js no encontrado.')"></script>
 
   <!-- Módulos -->
-  <script src="js/config.js"></script>
-  <script src="js/utilidades.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/apiKey.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/modal.js"></script>
-  <script src="js/autocomplete.js"></script>
-  <script src="js/tarjetas.js"></script>
-  <script src="js/endpoints.js"></script>
-  <script src="js/autoresMasLeidos.js"></script>
-  <script src="js/main.js"></script>
+  <script src="config.js"></script>
+  <script src="utilidades.js"></script>
+  <script src="ui.js"></script>
+  <script src="apiKey.js"></script>
+  <script src="api.js"></script>
+  <script src="modal.js"></script>
+  <script src="autocomplete.js"></script>
+  <script src="tarjetas.js"></script>
+  <script src="endpoints.js"></script>
+  <script src="autoresMasLeidos.js"></script>
+  <script src="main.js"></script>
 
 </body>
 </html>

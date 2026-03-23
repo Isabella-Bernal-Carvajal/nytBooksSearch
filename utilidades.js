@@ -22,15 +22,15 @@
  * @returns {string} Fecha formateada, o el string original si el parseo falla
  */
 function formatearFecha(fechaStr) {
-  if (!fechaStr) return '';
-  try {
-    // Se agrega T00:00:00 para evitar desfases de zona horaria
-    return new Date(fechaStr + 'T00:00:00').toLocaleDateString('es-CO', {
-      year:  'numeric',
-      month: 'long',
-      day:   'numeric'
-    });
-  } catch {
-    return fechaStr;
-  }
+    if (!fechaStr) return '';
+    try {
+        // Se agrega T00:00:00 para evitar desfases de zona horaria
+        return new Date(fechaStr + 'T00:00:00').toLocaleDateString('es-CO', {
+        year:  'numeric',
+        month: 'long',
+        day:   'numeric'
+        });
+    } catch {
+        return fechaStr;
+    }
 }

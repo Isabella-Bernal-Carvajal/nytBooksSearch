@@ -56,19 +56,19 @@ async function cargarAutoresMasLeidos() {
 
     // Ordenar por cantidad de libros en listas (luego por semanas totales como desempate)
     const ranking = Object.values(mapaAutores)
-      .sort((a, b) => b.libros.length - a.libros.length || b.totalSemanas - a.totalSemanas)
-      .slice(0, 20);
+        .sort((a, b) => b.libros.length - a.libros.length || b.totalSemanas - a.totalSemanas)
+        .slice(0, 20);
 
-    if (ranking.length === 0) {
-      mostrarVacio(contenedor, 'No hay datos suficientes para calcular el ranking de autores.');
-      return;
+        if (ranking.length === 0) {
+        mostrarVacio(contenedor, 'No hay datos suficientes para calcular el ranking de autores.');
+        return;
+        }
+
+        contenedor.innerHTML = ranking.map((entrada, i) => crearTarjetaAutor(entrada, i + 1)).join('');
+
+    } catch (err) {
+        mostrarError(contenedor, err.message);
     }
-
-    contenedor.innerHTML = ranking.map((entrada, i) => crearTarjetaAutor(entrada, i + 1)).join('');
-
-  } catch (err) {
-    mostrarError(contenedor, err.message);
-  }
 }
 
 /**
@@ -81,34 +81,34 @@ async function cargarAutoresMasLeidos() {
  * @returns {string} HTML de la tarjeta
  */
 function crearTarjetaAutor(entrada, posicion) {
-  const { autor, libros, totalSemanas } = entrada;
+    const { autor, libros, totalSemanas } = entrada;
 
-  const portadasHTML = libros.slice(0, 4).map(libro => {
-    const portada = libro.book_image || IMG_FALLBACK;
-    const libroEnc = encodeURIComponent(JSON.stringify(libro));
+    const portadasHTML = libros.slice(0, 4).map(libro => {
+        const portada = libro.book_image || IMG_FALLBACK;
+        const libroEnc = encodeURIComponent(JSON.stringify(libro));
+        return `
+        <div class="autor-libro-mini" onclick="abrirModalLibro('${libroEnc}')" title="${libro.title}">
+            <img src="${portada}" alt="${libro.title}"
+                onerror="this.src='${IMG_FALLBACK}'">
+            <span>${libro.title}</span>
+        </div>`;
+    }).join('');
+
+    const medallaSVG = posicion === 1
+        ? '🥇' : posicion === 2 ? '🥈' : posicion === 3 ? '🥉' : `#${posicion}`;
+
     return `
-      <div class="autor-libro-mini" onclick="abrirModalLibro('${libroEnc}')" title="${libro.title}">
-        <img src="${portada}" alt="${libro.title}"
-             onerror="this.src='${IMG_FALLBACK}'">
-        <span>${libro.title}</span>
-      </div>`;
-  }).join('');
-
-  const medallaSVG = posicion === 1
-    ? '🥇' : posicion === 2 ? '🥈' : posicion === 3 ? '🥉' : `#${posicion}`;
-
-  return `
-    <div class="autor-card">
-      <div class="autor-card-header">
-        <span class="autor-posicion">${medallaSVG}</span>
-        <div class="autor-info">
-          <div class="autor-nombre">${autor}</div>
-          <div class="autor-stats">
-            <span>📚 ${libros.length} libro(s) en listas</span>
-            ${totalSemanas ? `<span>📅 ${totalSemanas} semanas acumuladas</span>` : ''}
-          </div>
+        <div class="autor-card">
+        <div class="autor-card-header">
+            <span class="autor-posicion">${medallaSVG}</span>
+            <div class="autor-info">
+            <div class="autor-nombre">${autor}</div>
+            <div class="autor-stats">
+                <span>📚 ${libros.length} libro(s) en listas</span>
+                ${totalSemanas ? `<span>📅 ${totalSemanas} semanas acumuladas</span>` : ''}
+            </div>
+            </div>
         </div>
-      </div>
-      <div class="autor-libros-row">${portadasHTML}</div>
+        <div class="autor-libros-row">${portadasHTML}</div>
     </div>`;
 }
