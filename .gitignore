@@ -3,7 +3,7 @@
 # ─────────────────────────────────────────────
 
 # Archivo de configuración local con la API Key
-config.js
+# config.js (Comentado para poder subir la clave a GitHub)
 
 # Archivos del sistema operativo
 .DS_Store

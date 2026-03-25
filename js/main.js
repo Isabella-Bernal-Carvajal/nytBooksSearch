@@ -8,7 +8,7 @@
 window.addEventListener('DOMContentLoaded', () => {
 
   // 1 — API Key
-    if (!localStorage.getItem('nyt_api_key') && DEFAULT_API_KEY) {
+    if (!localStorage.getItem('nyt_api_key') && typeof DEFAULT_API_KEY !== 'undefined') {
         localStorage.setItem('nyt_api_key', DEFAULT_API_KEY);
     }
 
