@@ -9,6 +9,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
+
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#000000" />
+
 <body>
 
   <!-- ═══════════════════════════════════════════
@@ -246,6 +250,17 @@
   <script src="js/endpoints.js"></script>
   <script src="js/autoresMasLeidos.js"></script>
   <script src="js/main.js"></script>
+
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js")
+          .then(() => console.log("SW registrado"))
+          .catch(err => console.log("Error SW:", err));
+      });
+    }
+  </script>
 
 </body>
 </html>
