@@ -1,9 +1,4 @@
 /* =============================================
-   NYT BOOKS EXPLORER — style.css
-   Ejercicio: Consumo de APIs — NYT Books API
-   Aprendiz: Isabella Bernal Carvajal
-   =============================================
-
    ESTRUCTURA DE ESTE ARCHIVO:
    ─────────────────────────────
    1.  Variables CSS y Reset
@@ -108,13 +103,6 @@ body.dark {
 }
 
 
-/* =============================================
-   4. MODAL DE API KEY
-   Se muestra al cargar la app si no hay clave.
-   Se oculta agregando la clase 'hidden'.
-   ============================================= */
-
-/* Overlay de fondo que cubre toda la pantalla */
 .modal-overlay {
   position: fixed;
   inset: 0;                          /* Equivale a top/right/bottom/left: 0 */
