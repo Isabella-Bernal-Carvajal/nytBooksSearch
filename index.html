@@ -20,20 +20,7 @@
 
 <body>
 
-  <!-- ═══════════════════════════════════════════
-        MODAL API KEY
-  ════════════════════════════════════════════ -->
-  <div id="apiModal" class="modal-overlay">
-    <div class="modal-box">
-      <div class="modal-logo">📚</div>
-      <h2>NYT Books Explorer</h2>
-      <p>Ingresa tu API Key del New York Times para comenzar.</p>
-      <p class="modal-hint">Obtén tu clave en <a href="https://developer.nytimes.com" target="_blank">developer.nytimes.com</a></p>
-      <input type="text" id="apiKeyInput" placeholder="Pega tu API Key aquí..." autocomplete="off">
-      <button onclick="guardarApiKey()" class="btn-primary">Comenzar exploración</button>
-      <p class="modal-note">Tu clave se guarda solo en tu navegador (localStorage).</p>
-    </div>
-  </div>
+
 
   <!-- ═══════════════════════════════════════════
         MODAL DETALLE DE LIBRO
@@ -80,7 +67,7 @@
       </button>
     </nav>
     <div class="sidebar-footer">
-      <button class="btn-apikey" onclick="cambiarApiKey()">🔑 Cambiar API Key</button>
+
       <button class="btn-theme" onclick="toggleTheme()" id="themeBtn">🌙 Modo Oscuro</button>
     </div>
   </aside>

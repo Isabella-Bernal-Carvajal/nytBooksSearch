@@ -8,7 +8,7 @@ async function fetchNYT(endpoint, params = {}) {
 
     // 🔥 CLAVE
     if (!apiKey) {
-        cambiarApiKey();
+        console.error("API Key faltante. Configura tu API Key en js/config.js o actualiza la app.");
         return null;
     }
 
@@ -29,7 +29,7 @@ async function fetchNYT(endpoint, params = {}) {
         const res = await fetch(urlStr);
 
         if (res.status === 401) {
-            cambiarApiKey();
+            console.error("API Key inválida (401). Verifica config.js");
             return null;
         }
 

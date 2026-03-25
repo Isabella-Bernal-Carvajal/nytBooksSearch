@@ -11,7 +11,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!localStorage.getItem('nyt_api_key') && DEFAULT_API_KEY) {
         localStorage.setItem('nyt_api_key', DEFAULT_API_KEY);
     }
-    document.getElementById('apiModal').classList.add('hidden');
 
     // 2 — Tema visual
     aplicarTemaGuardado();
